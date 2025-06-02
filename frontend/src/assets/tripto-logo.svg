@@ -1,0 +1,40 @@
+<!-- frontend/src/assets/tripto-logo.svg -->
+<svg
+  width="120"
+  height="40"
+  viewBox="0 0 120 40"
+  xmlns="http://www.w3.org/2000/svg"
+>
+  <!-- Sun -->
+  <circle cx="20" cy="10" r="8" fill="#FBBF24" />
+
+  <!-- Wave path -->
+  <path
+    d="M0,30 C15,20 30,40 45,30 S75,25 90,30 S120,25 120,25 L120,40 L0,40 Z"
+    fill="#0EA5E9"
+    opacity="0.8"
+  />
+
+  <!-- Sailboat -->
+  <g transform="translate(60,16)">
+    <!-- Boat hull -->
+    <path d="M0,8 L12,16 L24,8 Z" fill="#374151" />
+    <!-- Mast -->
+    <rect x="11" y="-8" width="2" height="16" fill="#374151" />
+    <!-- Sail -->
+    <path d="M12,-8 L20,4 L12,4 Z" fill="#FFFFFF" />
+  </g>
+
+  <!-- TripTo text -->
+  <text
+    x="80"
+    y="13"
+    font-family="Playfair Display, serif"
+    font-size="16"
+    font-weight="700"
+    fill="#FFFFFF"
+  >
+    <tspan fill="#F87171">Trip</tspan>
+    <tspan fill="#38BDF8">To🌊</tspan>
+  </text>
+</svg>

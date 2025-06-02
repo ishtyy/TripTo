@@ -1,0 +1,20 @@
+/* src/index.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Make entire page dark background + white text by default */
+body {
+  @apply bg-gray-900 text-gray-100 font-body;
+}
+
+/* Optional: style scrollbars */
+::-webkit-scrollbar {
+  width: 8px;
+}
+::-webkit-scrollbar-track {
+  @apply bg-gray-800;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-sky-700 rounded;
+}
