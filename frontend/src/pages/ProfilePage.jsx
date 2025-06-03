@@ -1,10 +1,10 @@
 // frontend/src/pages/ProfilePage.jsx
 import React, { useEffect, useState } from 'react';
-import { useNavigate, Link } from 'react-router-dom'; // Import Link here
+import { useNavigate, Link } from 'react-router-dom';
 import api from '../services/api';
 import { UserCircle, Edit, Mail, CalendarDays, MapPin, Users, FileText, ShieldCheck, LogOut } from 'lucide-react';
 
-// Placeholder Card Component
+// InfoCard Component
 const InfoCard = ({ title, children, icon: Icon }) => (
   <div className="bg-gray-800 p-5 rounded-lg shadow-lg">
     <div className="flex items-center text-sky-400 mb-3">
@@ -22,67 +22,77 @@ export default function ProfilePage({ user, onSignOut }) {
   const [profileData, setProfileData] = useState(null);
   const [userPosts, setUserPosts] = useState([]);
   const [joinedCommunities, setJoinedCommunities] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [loadingProfile, setLoadingProfile] = useState(true);
+  const [loadingPosts, setLoadingPosts] = useState(true);
+  const [loadingCommunities, setLoadingCommunities] = useState(true);
   const [error, setError] = useState('');
 
   useEffect(() => {
     if (!user) {
-      navigate('/'); // Redirect if not logged in
+      navigate('/'); 
       return;
     }
+    
+    setProfileData(user);
+    setLoadingProfile(false); 
 
-    const fetchProfileData = async () => {
-      setLoading(true);
-      setError('');
+    const fetchUserSpecificData = async () => {
+      let accumulatedError = "";
+
+      setLoadingPosts(true);
       try {
-        setProfileData(user);
-
-        // Fetch user's blog posts (general posts)
-        // TODO: Ensure your backend /api/posts can filter by user_id.
-        // If not, this might fetch all posts.
+        console.log(`[ProfilePage] Fetching posts for user_id: ${user.user_id}`);
         const postsRes = await api.get(`/posts?user_id=${user.user_id}`);
         setUserPosts(postsRes.data.posts || []);
-
-        // Fetch user's joined communities
-        // TODO: Create a backend endpoint: GET /api/users/:userId/communities
-        // This endpoint should return a list of communities the user is a member of.
-        // Example: SELECT c.* FROM community c JOIN community_membership cm ON c.community_id = cm.community_id WHERE cm.user_id = :userId
-        // For now, using placeholder data:
-        // const communitiesRes = await api.get(`/users/${user.user_id}/communities`);
-        // setJoinedCommunities(communitiesRes.data.communities || []);
-        setJoinedCommunities([
-            { community_id: 'sample1', community_name: 'Paris Food Lovers (Sample)'}, // Use unique keys for sample data
-            { community_id: 'sample2', community_name: 'Tech Innovators Hub (Sample)'}
-        ]);
-
+        console.log(`[ProfilePage] Fetched ${postsRes.data.posts?.length || 0} posts.`);
       } catch (err) {
-        console.error("Fetch Profile Data Error:", err);
-        setError("Failed to load some profile data.");
-        if (err.response?.status === 401) {
-            setError("Session expired. Please sign in again.");
+        console.error("Fetch User Posts Error:", err.response?.data || err.message);
+        accumulatedError += " Failed to load your blog posts.";
+      } finally {
+        setLoadingPosts(false);
+      }
+
+      setLoadingCommunities(true);
+      try {
+        console.log(`[ProfilePage] Fetching joined communities for user_id: ${user.user_id}`);
+        // This calls the endpoint from usersRoutes.js (ID: users_routes_joined_communities)
+        const communitiesRes = await api.get(`/users/${user.user_id}/communities`);
+        setJoinedCommunities(communitiesRes.data.communities || []);
+        console.log(`[ProfilePage] Fetched ${communitiesRes.data.communities?.length || 0} joined communities.`);
+      } catch (err) {
+        console.error("Fetch Joined Communities Error:", err.response?.data || err.message);
+        accumulatedError += " Failed to load your joined communities.";
+         if (err.response?.status === 403) {
+            console.warn("User not authorized to fetch joined communities for this ID, or mismatch.");
+            accumulatedError += " (Not authorized or user ID mismatch for communities).";
+        } else if (err.response?.status === 401) {
+            accumulatedError += " Your session might have expired when fetching communities."
         }
       } finally {
-        setLoading(false);
+        setLoadingCommunities(false);
       }
+      if (accumulatedError) setError(accumulatedError.trim());
     };
 
-    fetchProfileData();
+    if (user && user.user_id) { // Ensure user_id is available before fetching
+        fetchUserSpecificData();
+    } else if (user && !user.user_id) {
+        console.error("[ProfilePage] User object is present but user_id is missing. Cannot fetch specific data.", user);
+        setError("User ID is missing, cannot fetch detailed data.");
+        setLoadingPosts(false);
+        setLoadingCommunities(false);
+    }
+
   }, [user, navigate]);
 
-  if (loading) {
+  if (loadingProfile) {
     return <div className="text-center py-10 text-gray-400">Loading profile...</div>;
   }
 
   if (!profileData) {
-    return <div className="text-center py-10 text-red-500">Could not load profile. Please try again.</div>;
+    return <div className="text-center py-10 text-red-500">Could not load profile data. Please ensure you are logged in.</div>;
   }
   
-  // Display error more gracefully if some data loaded but other parts failed
-  if (error && profileData) {
-     console.warn("Error on profile page (some data might be missing):", error);
-  }
-
-
   return (
     <div className="space-y-8 max-w-5xl mx-auto">
       {/* Profile Header */}
@@ -90,13 +100,13 @@ export default function ProfilePage({ user, onSignOut }) {
         <img
           src={profileData.profile_picture_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(profileData.username)}&background=1D4ED8&color=fff&size=128&font-size=0.5&bold=true`}
           alt={`${profileData.username}'s avatar`}
-          className="w-28 h-28 md:w-36 md:h-36 rounded-full border-4 border-sky-500 object-cover shadow-md bg-gray-700" // Added bg-gray-700 for fallback
+          className="w-28 h-28 md:w-36 md:h-36 rounded-full border-4 border-sky-500 object-cover shadow-md bg-gray-700"
         />
         <div className="flex-1 text-center md:text-left">
           <h1 className="text-3xl md:text-4xl font-bold text-white tracking-tight">{profileData.username}</h1>
           <p className="text-sky-400 mt-1">{profileData.email}</p>
           <p className="text-gray-400 mt-2 text-sm max-w-md">{profileData.bio || "No bio provided yet. Click 'Edit Profile' to add one!"}</p>
-          <p className="text-xs text-gray-500 mt-2">Joined: {new Date(profileData.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long' })}</p>
+          <p className="text-xs text-gray-500 mt-2">Joined: {profileData.created_at ? new Date(profileData.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long' }) : 'N/A'}</p>
           <button 
             onClick={() => alert("Edit profile functionality (TODO)")}
             className="mt-4 inline-flex items-center px-4 py-2 bg-sky-600 hover:bg-sky-700 text-white text-sm font-medium rounded-md shadow-sm transition-colors"
@@ -107,10 +117,15 @@ export default function ProfilePage({ user, onSignOut }) {
         </div>
       </div>
 
-      {/* Grid for different sections */}
+      {error && (
+         <div className="p-3 bg-yellow-200 border border-yellow-500 text-yellow-800 rounded-md text-sm">
+            Note: {error}
+        </div>
+      )}
+
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <InfoCard title="My Blog Posts" icon={FileText}>
-          {userPosts.length > 0 ? (
+          {loadingPosts ? <p className="text-gray-400">Loading posts...</p> : userPosts.length > 0 ? (
             <ul className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar pr-1">
               {userPosts.map(post => (
                 <li key={post.post_id} className="p-2 bg-gray-700/50 rounded hover:bg-gray-700 transition-colors">
@@ -123,24 +138,26 @@ export default function ProfilePage({ user, onSignOut }) {
               ))}
             </ul>
           ) : (
-            <p>No blog posts yet.</p>
+            <p className="text-gray-400">No blog posts yet.</p>
           )}
-          {/* TODO: Link to create new general blog post (e.g., open BlogModal from HomePage) */}
         </InfoCard>
 
         <InfoCard title="Joined Communities" icon={Users}>
-          {joinedCommunities.length > 0 ? (
+          {loadingCommunities ? <p className="text-gray-400">Loading communities...</p> : joinedCommunities.length > 0 ? (
             <ul className="space-y-2 max-h-60 overflow-y-auto custom-scrollbar pr-1">
               {joinedCommunities.map(community => (
                 <li key={community.community_id} className="p-2 bg-gray-700/50 rounded hover:bg-gray-700 transition-colors">
                   <Link to={`/communities/${community.community_id}`} className="text-sky-300 hover:underline block truncate" title={community.community_name}>
                     {community.community_name}
                   </Link>
+                   {/* You can display the role if needed:
+                   {community.user_role_in_community && <span className="text-xs text-gray-500 ml-2">({community.user_role_in_community})</span>} 
+                   */}
                 </li>
               ))}
             </ul>
           ) : (
-            <p>Not a member of any communities yet.</p>
+            <p className="text-gray-400">You haven't joined any communities yet.</p>
           )}
           <Link to="/communities" className="mt-3 inline-block text-sm text-sky-400 hover:underline">Explore Communities</Link>
         </InfoCard>
@@ -151,9 +168,6 @@ export default function ProfilePage({ user, onSignOut }) {
             <button className="text-red-400 hover:text-red-300 hover:underline w-full text-left mt-2 p-1 hover:bg-red-900/30 rounded">Delete Account (TODO)</button>
         </InfoCard>
       </div>
-      
-      {error && !loading && <p className="text-center text-red-500 mt-4 bg-red-100 border border-red-500 p-3 rounded-md">{error}</p>}
-
     </div>
   );
 }
