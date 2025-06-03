@@ -1,65 +1,66 @@
-/**
- * backend/src/middleware/authMiddleware.js
- *
- * Middleware to verify JWTs and enforce roles (user, community_admin, super_admin).
- */
+    // backend/src/middleware/authMiddleware.js
+    const jwt = require('jsonwebtoken');
+    const supabase = require('../config/supabaseClient');
 
-const jwt = require('jsonwebtoken');
-const supabase = require('../config/supabaseClient');
+    const JWT_SECRET = process.env.JWT_SECRET;
 
-const JWT_SECRET = process.env.JWT_SECRET;
+    async function checkJwtMiddleware(req, res, next) {
+      try {
+        const authHeader = req.headers['authorization'];
+        if (!authHeader || !authHeader.startsWith('Bearer ')) {
+          return res.status(401).json({ error: 'Missing or malformed Authorization header' });
+        }
 
-/**
- * checkJwtMiddleware:
- *  - Reads the Bearer token from Authorization header.
- *  - Verifies the token using JWT_SECRET.
- *  - Fetches user from Supabase to confirm existence.
- *  - Attaches userId & role to req object.
- */
-async function checkJwtMiddleware(req, res, next) {
-  try {
-    const authHeader = req.headers['authorization'];
-    if (!authHeader || !authHeader.startsWith('Bearer ')) {
-      return res.status(401).json({ error: 'Missing Authorization header' });
+        const token = authHeader.split(' ')[1];
+        if (!token) {
+            return res.status(401).json({ error: 'Missing token in Authorization header' });
+        }
+        
+        // Verify the token and decode its payload
+        // Ensure JWT_SECRET is correctly set in your .env file!
+        const payload = jwt.verify(token, JWT_SECRET); 
+
+        const { data: user, error: dbError } = await supabase
+          .from('user_profile') 
+          .select('user_id, role')  // Fetches the global role from user_profile
+          .eq('user_id', payload.userId) 
+          .single();
+
+        if (dbError || !user) {
+          console.error('Token validation error or user not found in user_profile:', dbError);
+          return res.status(401).json({ error: 'Invalid token or user not found' });
+        }
+
+        req.userId = user.user_id; 
+        req.role = user.role; // Sets the global role on the request object
+        
+        next();
+      } catch (err) {
+        console.error('checkJwtMiddleware Error:', err.name, err.message);
+        if (err.name === 'JsonWebTokenError') {
+            return res.status(401).json({ error: `Unauthorized: Invalid token - ${err.message}` });
+        }
+        if (err.name === 'TokenExpiredError') {
+            return res.status(401).json({ error: 'Unauthorized: Token expired' });
+        }
+        return res.status(401).json({ error: 'Unauthorized (Middleware)' });
+      }
     }
 
-    const token = authHeader.split(' ')[1];
-    const payload = jwt.verify(token, JWT_SECRET);
+    function requireRole(requiredRole) {
+      return (req, res, next) => {
+        const userRole = req.role; // This is the global role from user_profile
 
-    // Validate user still exists in Supabase
-    const { data: user, error } = await supabase
-      .from('users')
-      .select('id, role')
-      .eq('id', payload.userId)
-      .single();
-
-    if (error || !user) {
-      return res.status(401).json({ error: 'Invalid token or user not found' });
+        if (userRole === requiredRole || (Array.isArray(requiredRole) && requiredRole.includes(userRole))) {
+          next();
+        } else {
+          // If userRole is null or undefined, this will also correctly forbid access.
+          return res.status(403).json({ 
+            error: `Forbidden: Insufficient privileges. Required role: ${Array.isArray(requiredRole) ? requiredRole.join(' or ') : requiredRole}, User role: ${userRole || 'N/A'}` 
+          });
+        }
+      };
     }
 
-    req.userId = user.id;
-    req.role = user.role;
-    next();
-  } catch (err) {
-    console.error('checkJwtMiddleware Error:', err);
-    return res.status(401).json({ error: 'Unauthorized' });
-  }
-}
-
-/**
- * requireRole(requiredRole):
- *  - Returns middleware that checks if req.role matches requiredRole.
- *  - Also allows 'super_admin' to bypass.
- */
-function requireRole(requiredRole) {
-  return (req, res, next) => {
-    const userRole = req.role;
-    if (userRole === requiredRole || userRole === 'super_admin') {
-      next();
-    } else {
-      return res.status(403).json({ error: 'Forbidden: insufficient privileges' });
-    }
-  };
-}
-
-module.exports = { checkJwtMiddleware, requireRole };
+    module.exports = { checkJwtMiddleware, requireRole };
+    

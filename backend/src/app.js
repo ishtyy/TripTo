@@ -3,53 +3,41 @@ require("dotenv").config();
 const express  = require("express");
 const cors     = require("cors");
 
-// ← Correct path: "./config/supabaseClient"
 const supabase = require("./config/supabaseClient");
 
 const authRoutes      = require("./routes/authRoutes");
 const communityRoutes = require("./routes/communityRoutes");
-const postsRoutes     = require("./routes/postsRoutes");
+const postsRoutes     = require("./routes/postsRoutes"); // For general blogposts
 const usersRoutes     = require("./routes/usersRoutes");
+const locationRoutes  = require('./routes/locationRoutes');
+const communityPostRoutes = require('./routes/communityPostRoutes'); // Import new routes
 
 const app = express();
 
 app.use(
   cors({
-    origin: "http://localhost:5173",
+    origin: "http://localhost:5173", // Your frontend URL
     methods: ["GET","POST","PUT","DELETE","OPTIONS"],
     allowedHeaders: ["Content-Type","Authorization"],
   })
 );
 app.use(express.json());
 
-app.get("/api/ping", (_req, res) => res.json({ pong: true }));
+app.get("/api/ping", (_req, res) => res.json({ pong: true, timestamp: new Date().toISOString() }));
 
-app.get("/api/debug/user_profiles", async (_req, res) => {
-  try {
-    const { data, error } = await supabase
-      .from("user_profile")
-      .select("*")
-      .limit(1);
-
-    if (error) {
-      console.error("Debug SELECT Error:", error);
-      return res.status(500).json({ error: error.message });
-    }
-    return res.json({ someRow: data });
-  } catch (err) {
-    console.error("Debug route unexpected error:", err);
-    return res.status(500).json({ error: err.message });
-  }
-});
-
+// API Routes
 app.use("/api/auth", authRoutes);
 app.use("/api/communities", communityRoutes);
-app.use("/api/posts", postsRoutes);
+app.use("/api/posts", postsRoutes); // General blogposts
+app.use("/api/community-posts", communityPostRoutes); // Posts within communities
 app.use("/api/users", usersRoutes);
+app.use('/api/locations', locationRoutes);
 
 app.use((err, _req, res, _next) => {
-  console.error("Global Error:", err);
-  res.status(500).json({ error: "Internal server error" });
+  console.error("Global Error Handler Caught:", err);
+  res.status(err.status || 500).json({ 
+    error: err.message || "Internal server error" 
+  });
 });
 
 const PORT = process.env.PORT || 5000;
