@@ -3,24 +3,37 @@ import React, { useEffect, useState, useCallback } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import { 
-    ArrowLeft, Users, Edit3, Settings, LogIn, LogOut, UserPlus, UserMinus, 
-    MessageCircle, Star, HelpCircle, Pin as PinIcon, User as UserIcon // Ensure UserIcon is imported
+    // ArrowLeft is now in FloatingActionButtons
+    Users, Settings, LogIn, LogOut, UserPlus, UserMinus, 
+    MessageCircle, Star, HelpCircle, Pin as PinIcon, User as UserIcon, Info
+    // Edit2 and PlusCircle are now in FloatingActionButtons or CreateCommunityPostModal
 } from 'lucide-react';
 import CreateCommunityPostModal from '../components/CreateCommunityPostModal.jsx';
 import ViewCommunityPostModal from '../components/ViewCommunityPostModal.jsx';
+import FloatingActionButtons from '../components/FloatingActionButtons.jsx'; // Ensure this is the updated version
 
-// Individual Community Post Card
-const CommunityPostCard = ({ post, onPostClick }) => (
+// Individual Community Post Card with Dark Blue Hover
+const CommunityPostCard = ({ post, onPostClick, isFeatured, isPinned }) => (
   <div 
-    className="bg-gray-700/70 p-4 rounded-lg shadow-md hover:shadow-lg hover:bg-gray-700 transition-all duration-200 cursor-pointer group"
+    className={`p-4 rounded-lg shadow-lg transition-all duration-300 cursor-pointer group flex flex-col justify-between min-h-[180px] 
+      ${isPinned ? 'bg-sky-800/40 hover:bg-sky-700/60 border-2 border-sky-600' : 
+       isFeatured ? 'bg-amber-700/40 hover:bg-amber-600/60 border-2 border-amber-500' : 
+       'bg-gray-700/90 hover:bg-blue-800 dark:hover:bg-blue-700'}`} // Dark blue hover as requested
     onClick={() => onPostClick(post)}
   >
-    <h4 className="text-lg font-semibold text-sky-300 group-hover:text-sky-200 mb-1 truncate" title={post.title}>{post.title}</h4>
-    <p className="text-sm text-gray-300 line-clamp-3 mb-2">{post.content}</p>
-    <div className="text-xs text-gray-400 flex justify-between items-center">
+    <div>
+      <h4 
+        className={`font-semibold group-hover:text-white mb-1 truncate text-lg
+          ${isPinned ? 'text-sky-200' : isFeatured ? 'text-amber-300' : 'text-sky-300'}`} 
+        title={post.title}
+      >
+        {post.title}
+      </h4>
+      <p className="text-sm text-gray-300 group-hover:text-gray-200 line-clamp-3 mb-2">{post.content}</p>
+    </div>
+    <div className="text-xs text-gray-400 group-hover:text-gray-300 flex justify-between items-center mt-auto pt-2 border-t border-gray-600/60">
       <span className="flex items-center">
-        {/* Use the imported UserIcon here */}
-        <UserIcon size={12} className="mr-1 text-gray-500 flex-shrink-0"/> 
+        <UserIcon size={12} className="mr-1 text-gray-500 group-hover:text-gray-400 flex-shrink-0"/> 
         <span className="truncate">{post.user_profile?.username || 'Unknown'}</span>
       </span>
       <span>{new Date(post.created_at).toLocaleDateString()}</span>
@@ -28,16 +41,43 @@ const CommunityPostCard = ({ post, onPostClick }) => (
   </div>
 );
 
+// Member Avatar for Horizontal Bar
+const MemberBarAvatar = ({ member }) => {
+    const username = member.user_profile?.username || 'User';
+    // Robust avatar fallback using ui-avatars.com
+    const avatarUrl = member.user_profile?.profile_picture_url || 
+                      `https://ui-avatars.com/api/?name=${encodeURIComponent(username.split(' ').map(n=>n[0]).join('').substring(0,2))}&background=374151&color=E5E7EB&size=48&font-size=0.45&bold=true&format=svg`;
+
+    return (
+        <Link 
+            to={`/profile/${member.user_id}`} // TODO: Ensure /profile/:userId route exists for clickable member profiles
+            className="flex flex-col items-center text-center w-20 shrink-0 group p-1 hover:bg-gray-700/50 rounded-md transition-colors" 
+            title={username}
+        >
+            <img
+                src={avatarUrl}
+                alt={username}
+                className="w-12 h-12 bg-gray-600 rounded-full mb-1 border-2 border-gray-700 group-hover:border-sky-500 transition-all object-cover"
+            />
+            <span className="text-xs text-gray-400 group-hover:text-sky-300 truncate w-full">{username}</span>
+            {member.role === 'admin' && <span className="text-[10px] text-sky-500">Admin</span>}
+        </Link>
+    );
+};
+
+
 export default function CommunityDetailsPage({ user, onTriggerSignIn }) {
   const { communityId } = useParams();
-  const navigate = useNavigate();
+  // const navigate = useNavigate(); // useNavigate is used by FloatingActionButtons
   const [community, setCommunity] = useState(null);
   const [communityPosts, setCommunityPosts] = useState([]);
   const [pinnedPosts, setPinnedPosts] = useState([]); 
+  const [featuredPosts, setFeaturedPosts] = useState([]);
   const [members, setMembers] = useState([]);
   const [membership, setMembership] = useState({ isMember: false, role: null, details: null });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  
   const [actionInProgress, setActionInProgress] = useState(false);
   
   const [isCreatePostModalOpen, setIsCreatePostModalOpen] = useState(false);
@@ -55,8 +95,10 @@ export default function CommunityDetailsPage({ user, onTriggerSignIn }) {
       const postsRes = await api.get(`/community-posts?communityId=${communityId}`);
       const allPosts = postsRes.data.posts || [];
       
+      // Ensure is_pinned and is_featured flags are checked from your post data
       setPinnedPosts(allPosts.filter(p => p.is_pinned === true)); 
-      setCommunityPosts(allPosts.filter(p => p.is_pinned !== true));
+      setFeaturedPosts(allPosts.filter(p => p.is_featured === true).slice(0, 3)); // Show top 3 featured
+      setCommunityPosts(allPosts.filter(p => p.is_pinned !== true && p.is_featured !== true));
 
       const membersRes = await api.get(`/communities/${communityId}/members`);
       setMembers(membersRes.data.members || []);
@@ -67,209 +109,185 @@ export default function CommunityDetailsPage({ user, onTriggerSignIn }) {
       } else {
         setMembership({ isMember: false, role: null, details: null });
       }
-
-    } catch (err) {
-      console.error("Fetch Community Data Error:", err); // Log the full error
-      // Check if the error is due to token expiration
-      if (err.response && err.response.status === 401) {
-        setError('Your session has expired. Please sign in again.');
-        // onTriggerSignIn(); // This might be too aggressive, let App.jsx handle global 401
-      } else {
+    } catch (err) { 
+        console.error("Fetch Community Data Error:", err.response?.data || err.message);
         setError(err.response?.data?.error || 'Failed to load community data.');
-      }
-      if (err.response?.status === 404 && !err.message.includes("membership")) { // Avoid clearing community if only membership check failed
-        setCommunity(null);
-      }
-    } finally {
-      setLoading(false);
-    }
-  }, [communityId, user]); // Removed onTriggerSignIn from deps, it's a stable function
+        if (err.response?.status === 404) setCommunity(null);
+    } finally { setLoading(false); }
+  }, [communityId, user]);
 
-  useEffect(() => {
-    fetchCommunityData();
-  }, [fetchCommunityData]);
+  useEffect(() => { fetchCommunityData(); }, [fetchCommunityData]);
 
   const handleJoinCommunity = async () => { 
     if (!user) { onTriggerSignIn(); return; }
     setActionInProgress(true);
     try {
       await api.post(`/communities/${communityId}/join`);
-      fetchCommunityData(); 
+      fetchCommunityData();
     } catch (err) { 
-      alert(err.response?.data?.message || err.response?.data?.error || "Failed to join."); 
-      if (err.response?.status === 401) setError('Session expired. Please sign in.');
-    } 
-    finally { setActionInProgress(false); }
+      alert(err.response?.data?.message || err.response?.data?.error || "Failed to join community.");
+    } finally {
+      setActionInProgress(false);
+    }
   };
 
-  const handleLeaveCommunity = async () => {
+  const handleLeaveCommunity = async () => { 
     if (!user || !membership.isMember) return;
     if (membership.role === 'admin' && members.filter(m => m.role === 'admin').length <= 1) {
-        alert("As the only admin, you cannot leave. Transfer ownership or delete community (TODO)."); return;
+        alert("As the only admin, you cannot leave. Transfer ownership or delete community (TODO)."); 
+        return;
     }
-    if (!window.confirm("Leave this community?")) return;
+    if (!window.confirm("Are you sure you want to leave this community?")) return;
     setActionInProgress(true);
     try {
       await api.delete(`/communities/${communityId}/leave`);
       fetchCommunityData();
     } catch (err) { 
-      alert(err.response?.data?.error || "Failed to leave."); 
-      if (err.response?.status === 401) setError('Session expired. Please sign in.');
+      alert(err.response?.data?.error || "Failed to leave community.");
+    } finally {
+      setActionInProgress(false);
     }
-    finally { setActionInProgress(false); }
   };
-  
-  const handleCommunityPostCreated = (newPost) => {
+
+  const handleCommunityPostCreated = (newPost) => { 
     setCommunityPosts(prevPosts => [newPost, ...prevPosts]);
     setIsCreatePostModalOpen(false);
   };
+  const handleViewCommunityPost = (post) => { setSelectedPostToView(post); setIsViewPostModalOpen(true); };
 
-  const handleViewCommunityPost = (post) => {
-    setSelectedPostToView(post);
-    setIsViewPostModalOpen(true);
-  };
-
-  if (loading) return <div className="text-center py-10 text-gray-400">Loading community...</div>;
-  // Display specific error message, then fallback if community is null
+  if (loading) return <div className="flex justify-center items-center h-screen"><div className="text-gray-400 text-xl">Loading Community...</div></div>;
   if (error && !community && !loading) return <div className="text-center py-10 text-red-500 bg-red-100 p-4 rounded-md">{error} <Link to="/communities" className="text-sky-500 hover:underline ml-2">Go back</Link></div>;
   if (!community) return <div className="text-center py-10 text-gray-400">Community not found. <Link to="/communities" className="text-sky-400 hover:underline">Go back</Link></div>;
   
-  // Display general error if community data is present but other errors occurred (e.g. membership fetch)
-  if (error && community) {
-    // Display this error more subtly if main content can still be shown
-     console.warn("Partial error on CommunityDetailsPage:", error);
-  }
-
-
-  const canPostInCommunity = membership.isMember;
+  const canPostInCommunity = membership.isMember; // This will be passed to FloatingActionButtons
   const isAdmin = membership.isMember && membership.role === 'admin';
 
   const faqItems = [
-    { q: "How do I join?", a: "Click the 'Join Community' button if you're signed in!" },
-    { q: "What are the rules?", a: "Be respectful, share relevant content, and have fun. Specific rules may be pinned by admins." },
-    { q: "How can I become an admin?", a: "Admins are typically appointed by existing admins based on contribution and trust."}
+    { q: "How do I join this community?", a: "If you're signed in, click the 'Join Community' button! If you don't see it, you might already be a member." },
+    { q: "What are the posting guidelines?", a: "Be respectful, share content relevant to the community's theme, and avoid spam. Admins may post specific rules." },
+    { q: "How is content moderated?", a: "Community admins have tools to manage content and members to ensure a positive environment."}
   ];
 
   return (
-    <div className="space-y-6">
-      <button onClick={() => navigate(-1)} className="flex items-center text-sky-400 hover:text-sky-300 mb-1 transition-colors">
-        <ArrowLeft size={20} className="mr-2" />
-        Back
-      </button>
-
-      <header className="bg-gray-800 p-6 rounded-lg shadow-lg">
+    <div className="space-y-6 relative pb-24 pt-8"> {/* Padding for floating buttons */}
+      {/* Community Header */}
+      <header className="bg-gray-800 p-6 rounded-lg shadow-xl border border-gray-700">
         <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
             <div>
-                <h1 className="text-3xl md:text-4xl font-heading text-white mb-2 break-words">{community.community_name}</h1>
+                <h1 className="text-3xl lg:text-4xl font-bold text-white mb-2 break-words">{community.community_name}</h1>
                 <p className="text-gray-400 mb-1 text-sm">Located in: {community.location?.location_name || "N/A"}{community.location?.country ? `, ${community.location.country}` : ""}</p>
-                <p className="text-sm text-gray-300">{community.description}</p>
+                <p className="text-sm text-gray-300 max-w-2xl">{community.description}</p>
             </div>
-            <div className="mt-4 md:mt-0 flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-3 w-full sm:w-auto shrink-0">
-                {!user && ( <button onClick={onTriggerSignIn} disabled={actionInProgress} className="w-full sm:w-auto bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium flex items-center justify-center transition-colors disabled:opacity-50"> <LogIn size={16} className="mr-2"/> Sign in to Join </button> )}
-                {user && !membership.isMember && ( <button onClick={handleJoinCommunity} disabled={actionInProgress} className="w-full sm:w-auto bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium flex items-center justify-center transition-colors disabled:opacity-50"> <UserPlus size={16} className="mr-2"/> Join Community </button> )}
-                {user && membership.isMember && ( <button onClick={handleLeaveCommunity} disabled={actionInProgress} className="w-full sm:w-auto bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md text-sm font-medium flex items-center justify-center transition-colors disabled:opacity-50"> <UserMinus size={16} className="mr-2"/> Leave Community </button> )}
-                {isAdmin && ( <button className="w-full sm:w-auto bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-md text-sm font-medium flex items-center justify-center transition-colors disabled:opacity-50"> <Settings size={16} className="mr-2"/> Admin (TODO) </button> )}
+            {/* Action Buttons in Header (Join/Leave/Admin) */}
+            <div className="mt-4 md:mt-0 flex flex-col sm:flex-row items-center space-y-2 sm:space-y-0 sm:space-x-3 w-full sm:w-auto shrink-0">
+                {!user && ( <button onClick={onTriggerSignIn} disabled={actionInProgress} className="w-full sm:w-auto bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium flex items-center justify-center transition-colors shadow-md hover:shadow-lg disabled:opacity-60"> <LogIn size={16} className="mr-2"/> Sign in to Join </button> )}
+                {user && !membership.isMember && ( <button onClick={handleJoinCommunity} disabled={actionInProgress} className="w-full sm:w-auto bg-green-500 hover:bg-green-600 text-white px-4 py-2 rounded-md text-sm font-medium flex items-center justify-center transition-colors shadow-md hover:shadow-lg disabled:opacity-60"> <UserPlus size={16} className="mr-2"/> Join Community </button> )}
+                {user && membership.isMember && ( <button onClick={handleLeaveCommunity} disabled={actionInProgress} className="w-full sm:w-auto bg-red-500 hover:bg-red-600 text-white px-4 py-2 rounded-md text-sm font-medium flex items-center justify-center transition-colors shadow-md hover:shadow-lg disabled:opacity-60"> <UserMinus size={16} className="mr-2"/> Leave Community </button> )}
+                {isAdmin && ( <button disabled={actionInProgress} className="w-full sm:w-auto bg-gray-700 hover:bg-gray-600 text-white px-4 py-2 rounded-md text-sm font-medium flex items-center justify-center transition-colors shadow-md hover:shadow-lg disabled:opacity-60"> <Settings size={16} className="mr-2"/> Admin Panel (TODO) </button> )}
             </div>
         </div>
       </header>
       
-      {error && community && ( // Display non-critical errors here
-        <div className="my-4 p-3 bg-yellow-100 border border-yellow-400 text-yellow-700 rounded-md text-sm">
-            Note: {error}
-        </div>
+      {error && community && ( <div className="my-4 p-3 bg-yellow-100 border border-yellow-400 text-yellow-700 rounded-md text-sm">Note: {error}</div> )}
+
+      {/* Members Bar - Below Header, Full Width */}
+      {members.length > 0 && (
+        <section className="p-4 bg-gray-800/70 rounded-lg shadow-md">
+            <h2 className="text-lg font-semibold text-gray-100 mb-3 flex items-center">
+                <Users size={20} className="mr-2 text-sky-400"/> Members <span className="text-xs text-gray-400 ml-1.5">({members.length})</span>
+            </h2>
+            <div className="flex overflow-x-auto space-x-3 pb-2 custom-scrollbar">
+                {members.map(member => ( <MemberBarAvatar key={member.user_id} member={member} /> ))}
+            </div>
+        </section>
       )}
 
-
+      {/* Pinned Posts Section - Below Members, Full Width */}
       {pinnedPosts.length > 0 && (
-        <section className="space-y-3 p-4 bg-gray-800/50 rounded-lg">
-            <h2 className="text-xl font-semibold text-gray-100 flex items-center mb-3 border-b border-gray-700 pb-2">
-                <PinIcon size={20} className="mr-2 text-yellow-400 transform -rotate-45"/> Pinned Posts
+        <section className="space-y-3 p-4 bg-sky-900/30 rounded-lg border border-sky-700 shadow-md">
+            <h2 className="text-xl font-semibold text-sky-200 flex items-center mb-3">
+                <PinIcon size={20} className="mr-2 text-yellow-300 transform -rotate-45"/> Pinned
             </h2>
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {pinnedPosts.map(post => <CommunityPostCard key={post.post_id} post={post} onPostClick={handleViewCommunityPost} />)}
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                {pinnedPosts.map(post => <CommunityPostCard key={post.post_id} post={post} onPostClick={handleViewCommunityPost} isPinned={true} />)}
             </div>
         </section>
       )}
       
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        <main className="lg:col-span-2 space-y-4">
-          <div className="flex justify-between items-center mb-4">
-            <h2 className="text-2xl font-semibold text-gray-100 flex items-center"><MessageCircle size={24} className="mr-3 text-sky-400"/>Community Feed</h2>
-            {canPostInCommunity && (
-                 <button onClick={() => setIsCreatePostModalOpen(true)} className="bg-sunset hover:bg-sunset/90 text-white px-4 py-2 rounded-md text-sm font-medium flex items-center transition-colors">
-                    <Edit3 size={16} className="mr-2"/> Create Post
-                </button>
-            )}
-            {!user && !canPostInCommunity && ( <p className="text-sm text-gray-400"><button onClick={onTriggerSignIn} className="text-sky-400 hover:underline">Sign in</button> to join and post.</p> )}
-            {user && !canPostInCommunity && ( <p className="text-sm text-gray-400">Join community to post.</p> )}
-          </div>
-          {communityPosts.length > 0 ? (
-            <div className="space-y-4">
-              {communityPosts.map(post => <CommunityPostCard key={post.post_id} post={post} onPostClick={handleViewCommunityPost} />)}
-            </div>
-          ) : (
-            <p className="text-gray-400 bg-gray-800 p-6 rounded-md text-center">
-                {pinnedPosts.length > 0 && communityPosts.length === 0 ? "No other posts yet." : 
-                 (canPostInCommunity ? "No posts yet. Be the first!" : "No posts in this community yet.")
-                }
-            </p>
-          )}
-        </main>
-
-        <aside className="lg:col-span-1 space-y-4">
-          <div className="bg-gray-800 p-4 rounded-lg shadow">
-            <h3 className="text-xl font-semibold text-gray-100 mb-3 flex items-center">
-                <Users size={20} className="mr-2 text-sky-400"/> Members <span className="text-sm text-gray-400 ml-1">({members.length})</span>
+      {/* Main Content Area with Three Columns */}
+      <div className="flex flex-col lg:flex-row gap-6 mt-6">
+        {/* Left Sidebar: FAQ */}
+        <aside className="w-full lg:w-1/4 xl:w-1/5 space-y-4 order-2 lg:order-1 shrink-0">
+          <div className="bg-gray-800 p-4 rounded-lg shadow-md sticky top-24"> {/* Adjust top for sticky header */}
+            <h3 className="text-lg font-semibold text-gray-100 mb-3 flex items-center">
+                <HelpCircle size={18} className="mr-2 text-green-400"/> FAQ
             </h3>
-            {members.length > 0 ? (
-                <ul className="space-y-1 max-h-60 overflow-y-auto pr-1 custom-scrollbar">
-                    {members.map(member => (
-                        <li key={member.user_id} className="flex items-center justify-between text-gray-300 text-sm p-1.5 hover:bg-gray-700/50 rounded">
-                           <span className="flex items-center">
-                                <span className="w-5 h-5 bg-gray-600 rounded-full mr-2 flex-shrink-0"></span> 
-                                <span className="truncate">{member.user_profile?.username || 'Loading...'}</span>
-                           </span>
-                           <span className={`text-xs font-medium px-2 py-0.5 rounded-full ${member.role === 'admin' ? 'bg-sky-500 text-white' : 'bg-gray-600 text-gray-200'}`}>
-                               {member.role}
-                           </span>
-                        </li>
-                    ))}
-                </ul>
-            ) : ( <p className="text-sm text-gray-400">No members yet.</p> )}
-          </div>
-
-          <div className="bg-gray-800 p-4 rounded-lg shadow">
-            <h3 className="text-xl font-semibold text-gray-100 mb-3 flex items-center">
-                <HelpCircle size={20} className="mr-2 text-green-400"/> FAQ
-            </h3>
-            <div className="space-y-3">
+            <div className="space-y-3 max-h-[calc(100vh-15rem)] overflow-y-auto custom-scrollbar pr-1">
                 {faqItems.map((item, index) => (
                     <details key={index} className="text-sm group">
-                        <summary className="font-medium text-gray-200 hover:text-sky-300 cursor-pointer list-none flex justify-between items-center p-1 rounded hover:bg-gray-700/50">
-                            {item.q}
-                            <svg className="w-4 h-4 transition-transform duration-200 group-open:rotate-90 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path></svg>
+                        <summary className="font-medium text-gray-200 hover:text-sky-300 cursor-pointer list-none flex justify-between items-center p-2 rounded hover:bg-gray-700/50">
+                            <span>{item.q}</span>
+                            <svg className="w-4 h-4 transition-transform duration-200 group-open:rotate-90 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path></svg>
                         </summary>
                         <p className="text-gray-400 mt-1 pl-3 py-1 border-l-2 border-gray-700">{item.a}</p>
                     </details>
                 ))}
             </div>
           </div>
+        </aside>
+
+        {/* Center Content: Community Feed */}
+        <main className="w-full lg:flex-1 space-y-6 order-1 lg:order-2">
+          {/* "Create Post" button removed from here, handled by FloatingActionButtons */}
+          {!user && !canPostInCommunity && ( <p className="text-sm text-gray-400 text-center py-4"><button onClick={onTriggerSignIn} className="text-sky-400 hover:underline">Sign in</button> to join and post.</p> )}
+          {user && !canPostInCommunity && ( <p className="text-sm text-gray-400 text-center py-4">Join this community to create posts.</p> )}
           
-          <div className="bg-gray-800 p-4 rounded-lg shadow">
-            <h3 className="text-xl font-semibold text-gray-100 mb-3 flex items-center">
-                <Star size={20} className="mr-2 text-yellow-400"/> Featured (TODO)
+          {communityPosts.length > 0 ? (
+            <div className="space-y-6">
+              {communityPosts.map(post => (
+                 <div key={post.post_id} className="max-w-xl mx-auto w-full"> {/* Centering block for posts */}
+                    <CommunityPostCard post={post} onPostClick={handleViewCommunityPost} />
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="text-gray-400 bg-gray-800/50 p-8 rounded-lg text-center min-h-[200px] flex flex-col justify-center items-center">
+                <MessageCircle size={48} className="text-gray-600 mb-4"/>
+                <p className="text-lg">
+                    { (pinnedPosts.length > 0 || featuredPosts.length > 0) && communityPosts.length === 0 ? "No other posts in the feed yet." : 
+                     (canPostInCommunity ? "It's quiet here... Be the first to contribute!" : "No posts in this community yet.")
+                    }
+                </p>
+            </div>
+          )}
+        </main>
+
+        {/* Right Sidebar: About & Featured */}
+        <aside className="w-full lg:w-1/4 xl:w-1/5 space-y-4 order-3 lg:order-3 shrink-0">
+          <div className="bg-gray-800 p-4 rounded-lg shadow-md sticky top-24">
+            <h3 className="text-lg font-semibold text-gray-100 mb-3 flex items-center">
+                <Info size={18} className="mr-2 text-sky-400"/> About Community
             </h3>
-            <p className="text-sm text-gray-400">Featured content or links will appear here. Admins can manage this.</p>
+            <p className="text-sm text-gray-300 whitespace-pre-line mb-2 max-h-40 overflow-y-auto custom-scrollbar pr-1">{community.description}</p>
+            <p className="text-xs text-gray-400">Created: {new Date(community.created_at).toLocaleDateString()}</p>
           </div>
 
-          <div className="bg-gray-800 p-4 rounded-lg shadow">
-            <h3 className="text-xl font-semibold text-gray-100 mb-3">About this Community</h3>
-            <p className="text-sm text-gray-300 whitespace-pre-line">{community.description}</p>
-            <p className="text-xs text-gray-400 mt-3">Created: {new Date(community.created_at).toLocaleDateString()}</p>
+          <div className="bg-gray-800 p-4 rounded-lg shadow-md sticky top-[calc(18rem+env(safe-area-inset-top,0px))] md:top-[calc(18rem)]"> 
+            <h3 className="text-lg font-semibold text-gray-100 mb-3 flex items-center">
+                <Star size={18} className="mr-2 text-yellow-400"/> Featured
+            </h3>
+            {featuredPosts.length > 0 ? (
+                <div className="space-y-3 max-h-60 overflow-y-auto custom-scrollbar pr-1">
+                    {featuredPosts.map(post => <CommunityPostCard key={post.post_id} post={post} onPostClick={handleViewCommunityPost} isFeatured={true}/>)}
+                </div>
+            ) : (
+                <p className="text-sm text-gray-400">No featured posts yet.</p>
+            )}
           </div>
         </aside>
       </div>
 
+      {/* Modals */}
       {isCreatePostModalOpen && community && (
         <CreateCommunityPostModal
             open={isCreatePostModalOpen}
@@ -280,12 +298,13 @@ export default function CommunityDetailsPage({ user, onTriggerSignIn }) {
             onTriggerSignIn={onTriggerSignIn}
         />
       )}
+      <ViewCommunityPostModal open={isViewPostModalOpen} onClose={() => setIsViewPostModalOpen(false)} post={selectedPostToView} />
 
-      <ViewCommunityPostModal
-        open={isViewPostModalOpen}
-        onClose={() => setIsViewPostModalOpen(false)}
-        post={selectedPostToView}
-      />
+      {/* Floating Action Buttons - Now handles Back, Scroll to Top, and Contribute */}
+      <FloatingActionButtons 
+        canContribute={canPostInCommunity} // Pass ability to contribute
+        onCreatePostClick={() => setIsCreatePostModalOpen(true)} // Pass handler for contribute click
+      /> 
     </div>
   );
 }

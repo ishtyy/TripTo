@@ -1,7 +1,7 @@
 // frontend/src/pages/CommunityPage.jsx
 import React, { useState, useEffect } from "react";
-import { Link } from "react-router-dom"; // Import Link
-import { Bookmark, Users, MessageCircle, Plus, Search, ExternalLink } from "lucide-react";
+import { Link } from "react-router-dom";
+import { Users, Plus, Search, ExternalLink } from "lucide-react"; // Removed Bookmark, MessageCircle as they weren't used here
 import CreateCommunityModal from "../components/CreateCommunityModal.jsx";
 import api from "../services/api.js";
 
@@ -42,12 +42,15 @@ export default function CommunityPage({ user, onTriggerSignIn }) {
 
   return (
     <div className="px-2 md:px-4 space-y-6">
-      <div className="flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-4">
-        <h1 className="text-2xl md:text-3xl font-heading text-sky-400">Communities</h1>
+      <div className="flex flex-col sm:flex-row justify-between items-center gap-3 sm:gap-4 pt-2">
+        {/* Styled Page Title */}
+        <h1 className="text-3xl md:text-4xl font-bold text-sky-500 dark:text-sky-400"> 
+          Explore Communities
+        </h1>
         {user && (
           <button
             onClick={() => setIsModalOpen(true)}
-            className="flex items-center space-x-2 bg-ocean hover:bg-ocean/90 text-white px-4 py-2 rounded-md font-medium transition-colors w-full sm:w-auto"
+            className="flex items-center space-x-2 bg-ocean hover:bg-ocean/90 text-white px-4 py-2.5 rounded-md font-medium transition-colors w-full sm:w-auto shadow-md hover:shadow-lg"
           >
             <Plus size={20} />
             <span>Create Community</span>
@@ -65,11 +68,11 @@ export default function CommunityPage({ user, onTriggerSignIn }) {
         )}
       </div>
 
-      <div className="relative">
+      <div className="relative mt-4 mb-6">
         <input
           type="text"
           placeholder="Search communities by name or description..."
-          className="w-full pl-10 pr-4 py-2 rounded-lg bg-gray-800 text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-sky-500 border border-gray-700"
+          className="w-full pl-10 pr-4 py-2.5 rounded-lg bg-gray-800 text-gray-100 placeholder-gray-400 focus:outline-none focus:ring-2 focus:ring-sky-500 border border-gray-700 shadow-sm"
           value={searchTerm}
           onChange={(e) => setSearchTerm(e.target.value)}
         />
@@ -80,18 +83,18 @@ export default function CommunityPage({ user, onTriggerSignIn }) {
       {error && <p className="text-red-500 bg-red-100 border border-red-500 p-3 rounded-md text-center">{error}</p>}
       
       {!isLoading && !error && filteredCommunities.length === 0 && (
-        <p className="text-gray-400 text-center py-5">
+        <p className="text-gray-400 text-center py-10 bg-gray-800/50 rounded-lg">
           {communities.length > 0 ? "No communities match your search." : "No communities found. Why not create one?"}
         </p>
       )}
 
       {!isLoading && !error && filteredCommunities.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 md:gap-6">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 md:gap-6">
           {filteredCommunities.map((community) => (
-            <Link // Wrap card with Link
-              to={`/communities/${community.community_id}`} // Link to detail page
+            <Link
+              to={`/communities/${community.community_id}`}
               key={community.community_id}
-              className="bg-gray-800 rounded-lg shadow-lg p-5 hover:shadow-sky-500/20 hover:border-sky-500 border border-transparent transition-all duration-300 flex flex-col group"
+              className="bg-gray-800 rounded-lg shadow-lg p-5 hover:shadow-sky-500/20 hover:border-sky-500 border-2 border-transparent transition-all duration-300 flex flex-col group min-h-[200px]" // Added min-height
             >
               <h3 className="text-xl font-semibold text-sky-400 group-hover:text-sky-300 mb-2 truncate transition-colors" title={community.community_name}>
                 {community.community_name}
@@ -99,11 +102,11 @@ export default function CommunityPage({ user, onTriggerSignIn }) {
               <p className="text-gray-300 text-sm mb-3 line-clamp-3 flex-grow">
                 {community.description}
               </p>
-              <div className="text-xs text-gray-500 mt-auto pt-2 border-t border-gray-700">
-                <p>Location: {community.location?.location_name || "N/A"}{community.location?.country ? `, ${community.location.country}` : ""}</p>
+              <div className="text-xs text-gray-500 mt-auto pt-3 border-t border-gray-700/50">
+                <p className="truncate">Location: {community.location?.location_name || "N/A"}{community.location?.country ? `, ${community.location.country}` : ""}</p>
                 <p>Created: {new Date(community.created_at).toLocaleDateString()}</p>
-                 <div className="flex items-center mt-2 text-sky-400 group-hover:text-sky-300 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                    View Community <ExternalLink size={12} className="ml-1"/>
+                 <div className="flex items-center mt-2 text-sky-500 group-hover:text-sky-400 opacity-0 group-hover:opacity-100 transition-opacity duration-300 text-sm font-medium">
+                    View Community <ExternalLink size={14} className="ml-1.5"/>
                  </div>
               </div>
             </Link>
