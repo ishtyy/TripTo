@@ -4,13 +4,14 @@ import api from '../services/api';
 import { PlaneTakeoff, Loader2, X as ClearIcon } from 'lucide-react';
 
 export default function AirportAutocomplete({ label, onLocationSelect, selectedLocation, onMouseEnter, isActive, onClear }) {
+  // inputValue is the text the user sees and types in the input box.
   const [inputValue, setInputValue] = useState(''); 
   const [suggestions, setSuggestions] = useState([]);
   const [isLoading, setIsLoading] = useState(false);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const wrapperRef = useRef(null);
   
-  // This effect syncs the input text ONLY when a new location is selected from the parent
+  // This effect syncs the input's text ONLY when a new location is selected from the parent
   useEffect(() => {
     if (selectedLocation) {
       setInputValue(`${selectedLocation.address.cityName} (${selectedLocation.iataCode})`);
@@ -20,10 +21,12 @@ export default function AirportAutocomplete({ label, onLocationSelect, selectedL
   }, [selectedLocation]);
 
   // This effect fetches suggestions based on what the user is currently typing
+  // THIS IS THE CRITICAL FIX. The logic is now much simpler.
   useEffect(() => {
     // If the input text is empty or already represents a selected location, do nothing.
     if (!inputValue || (selectedLocation && inputValue === `${selectedLocation.address.cityName} (${selectedLocation.iataCode})`)) {
       setSuggestions([]);
+      setShowSuggestions(false);
       return;
     }
 
@@ -32,7 +35,7 @@ export default function AirportAutocomplete({ label, onLocationSelect, selectedL
       api.get(`/flights/search-locations?keyword=${inputValue}`)
         .then(response => {
           setSuggestions(response.data.locations || []);
-          setShowSuggestions(true);
+          setShowSuggestions(true); // Explicitly show suggestions when we get a response
         })
         .catch(error => {
           console.error(`Error fetching locations for "${inputValue}":`, error);
@@ -83,6 +86,7 @@ export default function AirportAutocomplete({ label, onLocationSelect, selectedL
           onChange={handleInputChange}
           onFocus={() => { if (suggestions.length > 0) setShowSuggestions(true); }}
           placeholder="City or airport name..."
+          autoComplete="off"
           className={`w-full pl-10 pr-10 py-2 rounded-lg bg-gray-800 text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-ocean border-2 transition-colors ${isActive ? 'border-sky-500' : 'border-gray-700'}`}
         />
         {isLoading && <Loader2 className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 animate-spin" size={20} />}

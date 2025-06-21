@@ -1,20 +1,26 @@
 // tempo/backend/src/routes/flightRoutes.js
 const express = require('express');
-const Amadeus = require('amadeus');
-const amadeus = require('../services/amadeus');
+const Amadeus = require('amadeus'); // This import is necessary
+const amadeus = require('../services/amadeus'); // This is your initialized SDK
 
 const router = express.Router();
 
-// This endpoint is for when the user types in the search box.
+/**
+ * Endpoint for text search (autocomplete)
+ * GET /api/flights/search-locations?keyword=...
+ */
 router.get('/search-locations', async (req, res) => {
   const { keyword } = req.query;
   if (!keyword || keyword.length < 2) {
-    return res.status(400).json({ error: 'Keyword is required.' });
+    // Return 200 with empty array for short keywords instead of an error
+    return res.json({ locations: [] });
   }
   const searchKeyword = keyword.toUpperCase();
+
   try {
     const response = await amadeus.referenceData.locations.get({
       keyword: searchKeyword,
+      // THIS IS THE FIX: Explicitly tell Amadeus to search for both cities and airports.
       subType: [Amadeus.location.CITY, Amadeus.location.AIRPORT],
     });
     res.json({ locations: response.data });
@@ -24,7 +30,10 @@ router.get('/search-locations', async (req, res) => {
   }
 });
 
-// This endpoint is for when the user clicks on the map.
+/**
+ * Endpoint for map clicks
+ * GET /api/flights/search-by-coords?lat=...&lng=...
+ */
 router.get('/search-by-coords', async (req, res) => {
     const { lat, lng } = req.query;
     if (!lat || !lng) {
@@ -45,7 +54,10 @@ router.get('/search-by-coords', async (req, res) => {
 });
 
 
-// This endpoint finds flight deals.
+/**
+ * Endpoint for finding flight deals
+ * GET /api/flights/offers?origin=...&destination=...&date=...
+ */
 router.get('/offers', async (req, res) => {
   const { origin, destination, date } = req.query;
   if (!origin || !destination || !date) {
