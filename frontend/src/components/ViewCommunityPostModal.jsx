@@ -1,49 +1,38 @@
-// frontend/src/components/ViewCommunityPostModal.jsx
 import React from 'react';
-import { X, User } from 'lucide-react'; // Added User icon
+import { X, User, Calendar } from 'lucide-react';
 
 export default function ViewCommunityPostModal({ open, onClose, post }) {
   if (!open || !post) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-80 flex justify-center items-center z-[90] p-4 transition-opacity duration-300 ease-in-out"> {/* Higher z-index, smooth transition */}
-      <div className="bg-gray-800 rounded-xl w-full max-w-2xl p-6 md:p-8 relative flex flex-col shadow-2xl max-h-[90vh] border border-gray-700 transform transition-all duration-300 ease-in-out scale-95 group-hover:scale-100"> {/* Enhanced styling */}
-        <button
-          onClick={onClose}
-          className="absolute top-3 right-3 text-gray-500 hover:text-sky-400 transition-colors p-1 rounded-full hover:bg-gray-700"
-          aria-label="Close modal"
-        >
-          <X size={24} />
-        </button>
+    <div className="fixed inset-0 z-[90] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="bg-gray-900/80 border border-gray-700/80 rounded-xl shadow-2xl shadow-purple-900/20 p-6 md:p-8 max-w-3xl w-full relative flex flex-col max-h-[90vh]">
+        <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors"><X size={20} /></button>
 
-        <h2 className="text-2xl md:text-3xl font-heading mb-3 text-sky-300 break-words border-b border-gray-700 pb-3">
+        <h2 className="text-3xl md:text-4xl font-bold text-purple-300 break-words mb-4">
           {post.title}
         </h2>
-
-        <div className="overflow-y-auto pr-2 text-gray-200 flex-grow custom-scrollbar"> {/* Added custom-scrollbar class */}
-          <div className="mb-4 text-sm text-gray-400 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2">
-            <div className="flex items-center">
-              <User size={14} className="mr-1.5 text-gray-500" />
-              <span>By: <span className="font-medium text-gray-300">{post.user_profile?.username || "Unknown User"}</span></span>
-            </div>
-            <span className="text-gray-500">
-              Posted: <span className="text-gray-300">{new Date(post.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric', hour: '2-digit', minute: '2-digit' })}</span>
-            </span>
+        
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mb-4 text-sm text-gray-400 border-b border-t border-gray-800 py-3">
+          <div className="flex items-center gap-2">
+            <User size={14} className="text-gray-500" />
+            <span>By: <span className="font-medium text-gray-300">{post.user_profile?.username || "Unknown"}</span></span>
           </div>
-          
-          <article className="prose prose-sm prose-invert max-w-none leading-relaxed whitespace-pre-wrap"> {/* Tailwind typography, adjust as needed */}
+          <div className="flex items-center gap-2">
+            <Calendar size={14} className="text-gray-500" />
+            <span className="text-gray-300">{new Date(post.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+          </div>
+        </div>
+        
+        <div className="overflow-y-auto pr-2 text-gray-200 flex-grow custom-scrollbar">
+          <article className="prose prose-lg prose-invert max-w-none leading-relaxed whitespace-pre-wrap">
             {post.content}
           </article>
         </div>
 
-        {/* Optional: Add section for comments or actions here */}
-
-        <div className="mt-6 pt-4 border-t border-gray-700 text-right">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-6 py-2 rounded-lg bg-sky-500 hover:bg-sky-600 text-white font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-sky-400 focus:ring-opacity-50"
-          >
+        <div className="mt-8 pt-4 border-t border-gray-700 flex justify-end">
+          <button type="button" onClick={onClose}
+            className="px-6 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-700 text-white font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-cyan-400">
             Close
           </button>
         </div>

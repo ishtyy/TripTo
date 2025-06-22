@@ -3,7 +3,8 @@ require("dotenv").config();
 const express  = require("express");
 const cors     = require("cors");
 
-const supabase = require("./config/supabaseClient");
+// Note: We are no longer using the supabaseClient for direct queries here.
+// The new db.js module will be used in the route files.
 
 const authRoutes      = require("./routes/authRoutes");
 const communityRoutes = require("./routes/communityRoutes");
@@ -11,7 +12,7 @@ const postsRoutes     = require("./routes/postsRoutes");
 const usersRoutes     = require("./routes/usersRoutes");
 const locationRoutes  = require('./routes/locationRoutes');
 const communityPostRoutes = require('./routes/communityPostRoutes');
-//const flightRoutes = require('./routes/flightRoutes'); // 1. Import new flight routes
+const flightRoutes = require('./routes/flightRoutes'); // 1. UNCOMMENTED flight routes
 
 const app = express();
 
@@ -33,12 +34,12 @@ app.use("/api/posts", postsRoutes);
 app.use("/api/community-posts", communityPostRoutes);
 app.use("/api/users", usersRoutes);
 app.use('/api/locations', locationRoutes);
-//app.use('/api/flights', flightRoutes); // 2. Mount the new routes
+app.use('/api/flights', flightRoutes); // 2. Mount the new routes
 
 app.use((err, _req, res, _next) => {
   console.error("Global Error Handler Caught:", err);
-  res.status(err.status || 500).json({ 
-    error: err.message || "Internal server error" 
+  res.status(err.status || 500).json({
+    error: err.message || "Internal server error"
   });
 });
 

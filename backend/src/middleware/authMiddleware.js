@@ -1,6 +1,6 @@
 // tempo/backend/src/middleware/authMiddleware.js
 const jwt = require('jsonwebtoken');
-const supabase = require('../config/supabaseClient'); // We can still use supabase client for a simple user check
+const db = require('../config/db'); // Use the new raw SQL module
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
@@ -15,26 +15,22 @@ async function checkJwtMiddleware(req, res, next) {
     if (!token) {
         return res.status(401).json({ error: 'Missing token in Authorization header' });
     }
-    
-    // Verify the token and get the user's ID from it
-    const payload = jwt.verify(token, JWT_SECRET); 
 
-    // THE FIX IS HERE: We only select user_id because 'role' does not exist on the user_profile table.
-    // Roles are specific to communities.
-    const { data: user, error: dbError } = await supabase 
-      .from('user_profile')  
-      .select('user_id') // Correctly select only user_id
-      .eq('user_id', payload.userId)  
-      .single();
+    const payload = jwt.verify(token, JWT_SECRET);
 
-    if (dbError || !user) {
-      console.error('Token validation error or user not found in user_profile:', dbError);
+    // Verify user exists in the database using raw SQL
+    const { rows } = await db.query(
+      'SELECT user_id FROM user_profile WHERE user_id = $1',
+      [payload.userId]
+    );
+    const user = rows[0];
+
+    if (!user) {
+      console.error('Token validation error: user not found in user_profile for userId:', payload.userId);
       return res.status(401).json({ error: 'Invalid token or user not found' });
     }
 
-    // Attach the user's ID to the request object for later use in other routes.
-    req.userId = user.user_id; 
-    
+    req.userId = user.user_id;
     next();
   } catch (err) {
     console.error('checkJwtMiddleware Error:', err.name, err.message);
@@ -48,8 +44,7 @@ async function checkJwtMiddleware(req, res, next) {
   }
 }
 
-// NOTE: This function is now deprecated because there is no global role.
-// Role checks must be done inside specific routes by checking the community_membership table.
+
 function requireRole(requiredRole) {
   return (req, res, next) => {
     console.warn("DEPRECATION WARNING: requireRole middleware is used but global roles are not supported.");

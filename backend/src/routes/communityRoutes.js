@@ -1,300 +1,190 @@
-// backend/src/routes/communityRoutes.js
 const express = require("express");
-const supabase = require("../config/supabaseClient");
-const { checkJwtMiddleware } = require("../middleware/authMiddleware"); // Assuming this sets req.userId
+const db = require("../config/db");
+const { checkJwtMiddleware } = require("../middleware/authMiddleware");
 
 const router = express.Router();
 
-/**
- * GET /api/communities
- * Fetches all communities
- */
-router.get("/", async (req, res) => {
-  try {
-    const { data, error } = await supabase
-      .from("community")
-      .select(`
-        community_id,
-        community_name,
-        description,
-        created_at,
-        location_id,
-        location ( location_name, country ) 
-      `)
-      .order("created_at", { ascending: false });
 
-    if (error) throw error;
-    res.json({ communities: data || [] });
+router.get("/", async (req, res, next) => {
+  try {
+    const { limit, q } = req.query; 
+
+    let query = `
+        SELECT
+            c.community_id, c.community_name, c.description, c.created_at, c.location_id,
+            json_build_object('location_name', l.location_name, 'country', l.country) AS location
+        FROM community c
+        LEFT JOIN location l ON c.location_id = l.location_id
+    `;
+    const params = [];
+    const conditions = [];
+
+    if (q) {
+        params.push(`%${q}%`);
+        // Search in both name and description
+        conditions.push(`(c.community_name ILIKE $${params.length} OR c.description ILIKE $${params.length})`);
+    }
+
+    if(conditions.length > 0) {
+        query += ` WHERE ${conditions.join(' AND ')}`;
+    }
+
+    query += ` ORDER BY c.created_at DESC`;
+
+    if (limit) {
+      params.push(limit);
+      query += ` LIMIT $${params.length}`;
+    }
+
+    const { rows } = await db.query(query, params);
+    res.json({ communities: rows || [] });
   } catch (err) {
-    console.error("Fetch Communities Error:", err);
-    res.status(500).json({ error: err.message });
+    next(err);
   }
 });
 
-/**
- * GET /api/communities/:communityId
- * Fetches a single community's details.
- */
-router.get("/:communityId", async (req, res) => {
+
+
+router.get("/:communityId", async (req, res, next) => {
     const { communityId } = req.params;
     try {
-        const { data: community, error } = await supabase
-            .from("community")
-            .select(`
-                community_id,
-                community_name,
-                description,
-                created_at,
-                location_id,
-                location ( location_name, country )
-            `)
-            .eq("community_id", communityId)
-            .single();
+        const query = `
+            SELECT
+                c.community_id, c.community_name, c.description, c.created_at, c.location_id,
+                json_build_object('location_name', l.location_name, 'country', l.country) AS location
+            FROM community c
+            LEFT JOIN location l ON c.location_id = l.location_id
+            WHERE c.community_id = $1
+        `;
+        const { rows } = await db.query(query, [communityId]);
+        const community = rows[0];
 
-        if (error) {
-            console.error("Fetch Single Community Error:", error);
-            return res.status(404).json({ error: "Community not found or database error." });
-        }
         if (!community) {
             return res.status(404).json({ error: "Community not found." });
         }
         res.json({ community });
     } catch (err) {
-        console.error("Fetch Single Community Unexpected Error:", err);
-        res.status(500).json({ error: err.message });
+        next(err);
     }
 });
 
 
-/**
- * POST /api/communities
- * Creates a new community and adds the creator as admin.
- */
-router.post("/", checkJwtMiddleware, async (req, res) => {
+router.post("/", checkJwtMiddleware, async (req, res, next) => {
+  const { community_name, description, location_id } = req.body;
+  const creator_user_id = req.userId;
+
+  if (!community_name || !description || !location_id) {
+    return res.status(400).json({ error: "Community name, description, and location_id are required." });
+  }
+
+  const client = await db.pool.connect();
+
   try {
-    const { community_name, description, location_id } = req.body;
-    const creator_user_id = req.userId; 
+    await client.query('BEGIN');
 
-    if (!community_name || !description || !location_id) {
-      return res.status(400).json({ error: "Community name, description, and location_id are required." });
-    }
-    // Basic UUID validation for location_id
-    const uuidRegex = /^[0-9a-fA-F]{8}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{4}-[0-9a-fA-F]{12}$/;
-    if (!uuidRegex.test(location_id)) {
-        return res.status(400).json({ error: "Invalid location_id format. Must be a UUID." });
-    }
+    const communityQuery = `
+      INSERT INTO community (community_name, description, location_id, created_at)
+      VALUES ($1, $2, $3, $4)
+      RETURNING *
+    `;
+    const communityValues = [community_name.trim(), description.trim(), location_id, new Date()];
+    const communityRes = await client.query(communityQuery, communityValues);
+    const newCommunity = communityRes.rows[0];
+
+    // --- FIX: Added joined_at to the INSERT statement ---
+    const membershipQuery = `
+      INSERT INTO community_membership (community_id, user_id, role, joined_at)
+      VALUES ($1, $2, 'admin', $3)
+    `;
+    // --- FIX: Added new Date() to the values array ---
+    await client.query(membershipQuery, [newCommunity.community_id, creator_user_id, new Date()]);
     
-    const newCommunityData = {
-      // community_id will be generated by DB (ensure DEFAULT uuid_generate_v4())
-      location_id, 
-      community_name: community_name.trim(),
-      description: description.trim(),
-      created_at: new Date().toISOString()
+    const locationRes = await client.query('SELECT location_name, country FROM location WHERE location_id = $1', [newCommunity.location_id]);
+    
+    const finalCommunityResponse = {
+        ...newCommunity,
+        location: locationRes.rows[0] || null
     };
+    
+    await client.query('COMMIT');
+    res.status(201).json({ community: finalCommunityResponse });
 
-    const { data: newCommunity, error: insertCommunityError } = await supabase
-      .from("community")
-      .insert(newCommunityData)
-      .select(`*, location (location_name, country)`) // Select all fields including the generated community_id
-      .single();
-
-    if (insertCommunityError) {
-      console.error("Create Community - Insert Community Error:", insertCommunityError);
-      if (insertCommunityError.code === '23503') { 
-          return res.status(400).json({ error: "Invalid location_id. Location does not exist." });
-      }
-      if (insertCommunityError.code === '23505') { // Unique constraint violation
-          return res.status(409).json({ error: `Community with name "${community_name.trim()}" already exists or other unique constraint failed.`});
-      }
-      return res.status(500).json({ error: `Failed to create community: ${insertCommunityError.message}` });
-    }
-    if (!newCommunity || !newCommunity.community_id) {
-        return res.status(500).json({ error: "Community creation failed to return community_id."});
-    }
-
-    const membershipData = {
-      // membership_id will be generated by DB
-      community_id: newCommunity.community_id,
-      user_id: creator_user_id,
-      joined_at: new Date().toISOString(),
-      role: "admin", // Creator is admin
-    };
-
-    const { error: insertMembershipError } = await supabase
-      .from("community_membership")
-      .insert(membershipData);
-
-    if (insertMembershipError) {
-      console.error("Create Community - Insert Membership Error for admin:", insertMembershipError);
-      // Even if membership fails, the community was created. 
-      // This is a critical error for the creator, might want to clean up community or alert.
-      return res.status(500).json({ 
-        warning: "Community created, but failed to add creator as admin. Please contact support.",
-        community: newCommunity, 
-        membershipError: insertMembershipError.message
-      });
-    }
-
-    return res.status(201).json({ community: newCommunity });
   } catch (err) {
-    console.error("Create Community Endpoint - Unexpected Error:", err);
-    res.status(500).json({ error: "An unexpected error occurred while creating the community." });
+    await client.query('ROLLBACK');
+    next(err);
+  } finally {
+    client.release();
   }
 });
 
-/**
- * GET /api/communities/:communityId/membership
- * Gets the current authenticated user's membership status for a specific community.
- */
-router.get("/:communityId/membership", checkJwtMiddleware, async (req, res) => {
+
+router.get("/:communityId/membership", checkJwtMiddleware, async (req, res, next) => {
     const { communityId } = req.params;
     const userId = req.userId;
-
     try {
-        const { data: membership, error } = await supabase
-            .from("community_membership")
-            .select("user_id, community_id, role, joined_at")
-            .eq("community_id", communityId)
-            .eq("user_id", userId)
-            .maybeSingle(); // Use maybeSingle as user might not be a member
-
-        if (error) {
-            console.error("Get Membership Error:", error);
-            return res.status(500).json({ error: "Failed to retrieve membership status." });
-        }
-
-        if (membership) {
-            res.json({ isMember: true, role: membership.role, details: membership });
+        const { rows } = await db.query('SELECT user_id, community_id, role, joined_at FROM community_membership WHERE community_id = $1 AND user_id = $2', [communityId, userId]);
+        if (rows.length > 0) {
+            res.json({ isMember: true, role: rows[0].role, details: rows[0] });
         } else {
             res.json({ isMember: false, role: null });
         }
     } catch (err) {
-        console.error("Get Membership Unexpected Error:", err);
-        res.status(500).json({ error: "An unexpected error occurred." });
+        next(err);
     }
 });
 
-/**
- * POST /api/communities/:communityId/join
- * Allows the current authenticated user to join a community.
- */
-router.post("/:communityId/join", checkJwtMiddleware, async (req, res) => {
+router.post("/:communityId/join", checkJwtMiddleware, async (req, res, next) => {
     const { communityId } = req.params;
     const userId = req.userId;
-
     try {
-        // Check if already a member
-        const { data: existingMembership, error: checkError } = await supabase
-            .from("community_membership")
-            .select("user_id")
-            .eq("community_id", communityId)
-            .eq("user_id", userId)
-            .single();
-
-        if (checkError && checkError.code !== 'PGRST116') { // PGRST116: 0 rows, which is fine
-             console.error("Join Community - Check Existing Membership Error:", checkError);
-             return res.status(500).json({ error: "Database error checking membership." });
-        }
-        if (existingMembership) {
+        const { rows: existing } = await db.query('SELECT user_id FROM community_membership WHERE community_id = $1 AND user_id = $2', [communityId, userId]);
+        if (existing.length > 0) {
             return res.status(409).json({ message: "User is already a member of this community." });
         }
-
-        const newMembership = {
-            // membership_id will be generated by DB
-            community_id: communityId,
-            user_id: userId,
-            joined_at: new Date().toISOString(),
-            role: "member", // Default role for joining
-        };
-
-        const { data: insertedMembership, error: insertError } = await supabase
-            .from("community_membership")
-            .insert(newMembership)
-            .select() // Select the inserted row
-            .single();
-
-        if (insertError) {
-            console.error("Join Community - Insert Error:", insertError);
-            // Handle foreign key constraint if communityId or userId is invalid (though unlikely if checkJwtMiddleware works)
-            if (insertError.code === '23503') {
-                 return res.status(404).json({ error: "Community or user not found." });
-            }
-            return res.status(500).json({ error: "Failed to join community." });
-        }
         
-        res.status(201).json({ message: "Successfully joined community.", membership: insertedMembership });
-
+        // --- FIX: Added joined_at to the INSERT statement ---
+        const insertQuery = `
+            INSERT INTO community_membership (community_id, user_id, role, joined_at)
+            VALUES ($1, $2, 'member', $3)
+            RETURNING *
+        `;
+        // --- FIX: Added new Date() to the values array ---
+        const { rows } = await db.query(insertQuery, [communityId, userId, new Date()]);
+        res.status(201).json({ message: "Successfully joined community.", membership: rows[0] });
     } catch (err) {
-        console.error("Join Community - Unexpected Error:", err);
-        res.status(500).json({ error: "An unexpected error occurred." });
+        next(err);
     }
 });
 
-/**
- * DELETE /api/communities/:communityId/leave
- * Allows the current authenticated user to leave a community.
- */
-router.delete("/:communityId/leave", checkJwtMiddleware, async (req, res) => {
+router.delete("/:communityId/leave", checkJwtMiddleware, async (req, res, next) => {
     const { communityId } = req.params;
     const userId = req.userId;
-
     try {
-        // Admins cannot leave directly if they are the only admin (add this logic if needed)
-        // For now, any member can leave.
-
-        const { error } = await supabase
-            .from("community_membership")
-            .delete()
-            .eq("community_id", communityId)
-            .eq("user_id", userId);
-
-        if (error) {
-            console.error("Leave Community Error:", error);
-            return res.status(500).json({ error: "Failed to leave community." });
+        const result = await db.query('DELETE FROM community_membership WHERE community_id = $1 AND user_id = $2', [communityId, userId]);
+        if (result.rowCount === 0) {
+            return res.status(404).json({ message: "Membership not found." });
         }
-
-        // Check if any rows were actually deleted, Supabase delete doesn't return count directly in simple delete
-        // but if error is null, it's assumed successful if the row existed.
         res.status(200).json({ message: "Successfully left community." });
-
     } catch (err) {
-        console.error("Leave Community - Unexpected Error:", err);
-        res.status(500).json({ error: "An unexpected error occurred." });
+        next(err);
     }
 });
 
-
-/**
- * GET /api/communities/:communityId/members
- * Fetches all members of a specific community.
- */
-router.get("/:communityId/members", async (req, res) => { // No checkJwtMiddleware needed if member list is public
+router.get("/:communityId/members", async (req, res, next) => {
     const { communityId } = req.params;
     try {
-        const { data: members, error } = await supabase
-            .from("community_membership")
-            .select(`
-                user_id,
-                role,
-                joined_at,
-                user_profile (
-                    username,
-                    profile_picture_url 
-                )
-            `)
-            .eq("community_id", communityId)
-            .order("joined_at", { ascending: true });
-
-        if (error) {
-            console.error("Fetch Members Error:", error);
-            return res.status(500).json({ error: "Failed to retrieve members." });
-        }
-        res.json({ members: members || [] });
+        const query = `
+            SELECT cm.user_id, cm.role, cm.joined_at, json_build_object('username', up.username, 'profile_picture_url', up.profile_picture_url) AS user_profile
+            FROM community_membership cm
+            JOIN user_profile up ON cm.user_id = up.user_id
+            WHERE cm.community_id = $1
+            ORDER BY cm.joined_at ASC
+        `;
+        const { rows } = await db.query(query, [communityId]);
+        res.json({ members: rows || [] });
     } catch (err) {
-        console.error("Fetch Members Unexpected Error:", err);
-        res.status(500).json({ error: "An unexpected error occurred." });
+        next(err);
     }
 });
-
 
 module.exports = router;

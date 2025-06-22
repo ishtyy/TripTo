@@ -2,16 +2,16 @@
 import React, { useEffect, useState } from "react";
 import api from "../services/api.js";
 import BlogModal from "../components/BlogModal.jsx";
-import ViewPostModal from "../components/ViewPostModal.jsx"; // Import the new modal
-import { Plus, ExternalLink } from "lucide-react";
+import ViewPostModal from "../components/ViewPostModal.jsx";
+import { Plus, ExternalLink, Rss } from "lucide-react";
+import { PostCardSkeleton } from "../components/PostCardSkeleton.jsx";
 
 export default function HomePage({ user, onTriggerSignIn }) {
   const [posts, setPosts] = useState([]);
   const [isLoadingPosts, setIsLoadingPosts] = useState(true);
   const [fetchPostsError, setFetchPostsError] = useState("");
   const [isBlogModalOpen, setIsBlogModalOpen] = useState(false);
-  
-  const [selectedPostForView, setSelectedPostForView] = useState(null); // State for the post to view
+  const [selectedPostForView, setSelectedPostForView] = useState(null);
   const [isViewPostModalOpen, setIsViewPostModalOpen] = useState(false);
 
   async function fetchPosts() {
@@ -45,13 +45,17 @@ export default function HomePage({ user, onTriggerSignIn }) {
   };
 
   return (
-    <div className="space-y-6 md:space-y-8">
+      <div className="space-y-12 animate-fade-in-up">
+    <div className="space-y-8">
       <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-        <h1 className="text-2xl md:text-3xl font-heading text-sky-400">Recent Posts</h1>
+        <h1 className="text-3xl md:text-4xl font-bold text-white flex items-center gap-3">
+          <Rss className="text-purple-400" />
+          Recent Posts
+        </h1>
         {user && (
           <button
             onClick={() => setIsBlogModalOpen(true)}
-            className="flex items-center space-x-2 bg-ocean hover:bg-ocean/90 text-white px-4 py-2 rounded-md font-medium transition-colors"
+            className="flex items-center gap-2 px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold transition-all duration-200 shadow-lg shadow-purple-600/20 hover:shadow-purple-600/40"
           >
             <Plus size={20} />
             <span>New Post</span>
@@ -59,22 +63,15 @@ export default function HomePage({ user, onTriggerSignIn }) {
         )}
       </div>
 
-      {isLoadingPosts && (
-        <div className="text-center py-10"><p className="text-gray-400 text-lg">Loading posts...</p></div>
-      )}
-
-      {!isLoadingPosts && fetchPostsError && (
-        <div className="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded-md text-center" role="alert">
-          <p><strong className="font-bold">Error:</strong> {fetchPostsError}</p>
-        </div>
-      )}
+      {isLoadingPosts && <p className="text-center py-10 text-gray-400">Loading posts...</p>}
+      {fetchPostsError && <div className="text-center py-10 text-red-400 bg-red-900/30 p-4 rounded-md">{fetchPostsError}</div>}
 
       {!isLoadingPosts && !fetchPostsError && posts.length === 0 && (
-        <div className="text-center py-10">
+        <div className="text-center py-16 bg-gray-900/50 rounded-xl">
           <p className="text-gray-400 text-lg">No posts yet. Be the first to share!</p>
           {!user && (
             <p className="text-gray-500 mt-2">
-              <button onClick={onTriggerSignIn} className="text-sky-400 hover:text-sky-300 underline">Sign in</button> to create a post.
+              <button onClick={onTriggerSignIn} className="text-purple-400 hover:text-purple-300 font-semibold underline">Sign in</button> to create a post.
             </p>
           )}
         </div>
@@ -85,23 +82,20 @@ export default function HomePage({ user, onTriggerSignIn }) {
           {posts.map((post) => (
             <div
               key={post.post_id}
-              className="bg-gray-800 rounded-lg p-5 shadow-lg hover:shadow-sky-500/20 hover:border-sky-500 border border-transparent transition-all duration-300 flex flex-col justify-between cursor-pointer group"
-              onClick={() => handleViewPost(post)} // Open modal on click
+              className="bg-gray-900/80 rounded-xl p-5 shadow-lg border-2 border-gray-800 hover:border-purple-600 transition-all duration-300 flex flex-col justify-between cursor-pointer group hover:shadow-2xl hover:shadow-purple-600/20"
+              onClick={() => handleViewPost(post)}
             >
               <div>
-                <h3 className="text-xl font-semibold text-gray-100 group-hover:text-sky-300 mb-2 truncate transition-colors" title={post.title}>
+                <h3 className="text-xl font-bold text-white group-hover:text-purple-300 mb-2 truncate transition-colors" title={post.title}>
                   {post.title}
                 </h3>
-                <p className="text-gray-300 text-sm mb-3 line-clamp-3">
-                  {post.content}
-                </p>
+                <p className="text-gray-400 text-sm mb-4 line-clamp-3">{post.content}</p>
               </div>
-              <div className="mt-auto pt-3 border-t border-gray-700 text-xs text-gray-500">
-                <p>By: <span className="font-medium text-gray-400">{post.user_profile?.username || "Unknown User"}</span></p>
-                <p>Location: <span className="text-gray-400">{post.location?.location_name || "N/A"}{post.location?.country ? `, ${post.location.country}` : ""}</span></p>
-                <p>Posted: <span className="text-gray-400">{new Date(post.created_at).toLocaleDateString()}</span></p>
-                <div className="text-sky-400 group-hover:text-sky-300 opacity-0 group-hover:opacity-100 transition-opacity duration-300 mt-2 flex items-center text-xs">
-                    View Post <ExternalLink size={12} className="ml-1"/>
+              <div className="mt-auto pt-4 border-t border-gray-700/50 text-xs text-gray-500 space-y-1">
+                <p>By: <span className="font-medium text-gray-300">{post.user_profile?.username || "Unknown"}</span></p>
+                <p>Location: <span className="font-medium text-gray-300">{post.location?.location_name || "N/A"}</span></p>
+                <div className="text-purple-400 group-hover:text-purple-300 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pt-2 flex items-center text-sm font-semibold">
+                    View Post <ExternalLink size={14} className="ml-1.5"/>
                 </div>
               </div>
             </div>
@@ -109,22 +103,9 @@ export default function HomePage({ user, onTriggerSignIn }) {
         </div>
       )}
 
-      {isBlogModalOpen && (
-        <BlogModal
-          open={isBlogModalOpen}
-          onClose={() => setIsBlogModalOpen(false)}
-          onPostCreated={handlePostCreated}
-          user={user}
-          onTriggerSignIn={onTriggerSignIn}
-        />
-      )}
-
-      {/* Render the ViewPostModal */}
-      <ViewPostModal
-        open={isViewPostModalOpen}
-        onClose={() => setIsViewPostModalOpen(false)}
-        post={selectedPostForView}
-      />
+      {isBlogModalOpen && <BlogModal open={isBlogModalOpen} onClose={() => setIsBlogModalOpen(false)} onPostCreated={ (newPost) => { setPosts(p => [newPost, ...p]); setIsBlogModalOpen(false); }} user={user} onTriggerSignIn={onTriggerSignIn} />}
+      <ViewPostModal open={isViewPostModalOpen} onClose={() => setIsViewPostModalOpen(false)} post={selectedPostForView} />
+    </div>
     </div>
   );
 }

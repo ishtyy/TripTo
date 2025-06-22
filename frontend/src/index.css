@@ -31,3 +31,132 @@ body {
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   @apply bg-sky-400;
 }
+.bg-dots {
+  background-image: radial-gradient(#2d213f 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+/* src/index.css */
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Make entire page dark background + white text by default */
+body {
+  @apply bg-black text-gray-200 font-body;
+  background-color: #05010a; /* A very dark purple-ish black */
+}
+
+/* Updated scrollbar with the new purple theme */
+::-webkit-scrollbar {
+  width: 10px;
+}
+::-webkit-scrollbar-track {
+  @apply bg-gray-900;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-purple-800 rounded-lg border-2 border-gray-900;
+}
+::-webkit-scrollbar-thumb:hover {
+    @apply bg-purple-700;
+}
+
+.custom-scrollbar::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  @apply bg-gray-800 rounded-full;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  @apply bg-purple-600 rounded-full;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  @apply bg-purple-500;
+}
+/* Add these new styles at the end of your index.css file */
+
+@keyframes text-gradient-animation {
+  0% { background-position: 0% 50%; }
+  50% { background-position: 100% 50%; }
+  100% { background-position: 0% 50%; }
+}
+
+/* Find the .animated-gradient-text rule and REPLACE it with this new gradient */
+
+.animated-gradient-text {
+  /* Create a new gradient background with cyan and blue */
+  background: linear-gradient(90deg, #22d3ee, #3b82f6, #22d3ee); /* Cyan to Blue back to Cyan */
+  background-size: 200% 200%;
+
+  /* Clip the background to the text */
+  -webkit-background-clip: text;
+  background-clip: text;
+
+  /* Make the text color transparent to show the gradient */
+  color: transparent;
+
+  /* Apply the animation */
+  animation: text-gradient-animation 4s ease-in-out infinite;
+}
+
+/* The rest of your CSS file remains the same */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.animate-fade-in-up {
+  /* This class will be applied to elements we want to animate */
+  animation: fade-in-up 0.5s ease-out forwards;
+  opacity: 0; /* Start hidden */
+}
+/* NEW: Keyframes for the hero title animation */
+/* Find the existing @keyframes hero-glow-animation and REPLACE it with this more subtle version */
+
+@keyframes hero-glow-animation {
+  0%, 100% {
+    text-shadow: 0 0 4px rgba(168, 85, 247, 0.5), 0 0 8px rgba(168, 85, 247, 0.3);
+  }
+  50% {
+    text-shadow: 0 0 6px rgba(34, 211, 238, 0.5), 0 0 12px rgba(34, 211, 238, 0.3);
+  }
+}
+
+/* The rest of your index.css file remains the same */
+/* NEW: Class for the animated "Adventure" text */
+.animated-hero-text {
+    animation: hero-glow-animation 5s ease-in-out infinite;
+}
+
+
+/* Keyframes for fade-in-up animation (Used for page transitions and lists) */
+@keyframes fade-in-up {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Class to apply the fade-in-up animation */
+.animate-fade-in-up {
+  animation: fade-in-up 0.5s ease-out forwards;
+  opacity: 0; /* Start hidden */
+}
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+.animate-fade-in {
+  animation: fade-in 0.3s ease-out forwards;
+}

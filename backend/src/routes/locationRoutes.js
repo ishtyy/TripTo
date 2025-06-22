@@ -1,15 +1,34 @@
 // backend/src/routes/locationRoutes.js
 const express = require('express');
-// const { v4: uuidv4 } = require('uuid'); // No longer needed if DB generates ID
-const supabase = require('../config/supabaseClient');
+const db = require('../config/db');
 const { checkJwtMiddleware } = require('../middleware/authMiddleware');
 
 const router = express.Router();
 
-/**
- * POST /api/locations/find-or-create
- * Body: { latitude, longitude, location_name, country, description (optional) }
- */
+router.get('/', async (req, res, next) => {
+    const { q } = req.query;
+    try {
+        let query = 'SELECT * FROM location';
+        const params = [];
+        if (q) {
+            query += ' WHERE location_name ILIKE $1 OR country ILIKE $1';
+            params.push(`%${q}%`);
+        }
+        query += ' ORDER BY location_name';
+
+        const { rows } = await db.query(query, params);
+        res.json({ locations: rows });
+    } catch (err) {
+        next(err);
+    }
+});
+
+
+// This endpoint is not implemented but is kept for future use.
+router.get('/', async (req, res) => {
+    res.status(501).json({ error: 'Not Implemented' });
+});
+
 router.post('/find-or-create', checkJwtMiddleware, async (req, res) => {
     const { latitude, longitude, location_name, country, description } = req.body;
 
@@ -17,57 +36,48 @@ router.post('/find-or-create', checkJwtMiddleware, async (req, res) => {
         return res.status(400).json({ error: 'Latitude, longitude, location_name, and country are required.' });
     }
 
+    const floatLat = parseFloat(latitude);
+    const floatLon = parseFloat(longitude);
+
     try {
-        let { data: existingLocation, error: findError } = await supabase
-            .from('location')
-            .select('location_id')
-            .eq('latitude', parseFloat(latitude))
-            .eq('longitude', parseFloat(longitude))
-            .ilike('location_name', location_name.trim())
-            .ilike('country', country.trim())
-            .maybeSingle(); 
+        // First, try to find the location based on the unique coordinates
+        const findQuery = 'SELECT location_id FROM location WHERE latitude = $1 AND longitude = $2';
+        const { rows: existingRows } = await db.query(findQuery, [floatLat, floatLon]);
 
-        if (findError) {
-            console.error('Error finding location:', findError);
-            return res.status(500).json({ error: 'Database error while searching for location.' });
+        if (existingRows.length > 0) {
+            // Location already exists, return its ID
+            return res.json({ location_id: existingRows[0].location_id, existed: true });
         }
 
-        if (existingLocation) {
-            return res.json({ location_id: existingLocation.location_id, existed: true });
-        }
+        // If it doesn't exist, insert it
+        const insertQuery = `
+            INSERT INTO location (latitude, longitude, location_name, country, description)
+            VALUES ($1, $2, $3, $4, $5)
+            RETURNING location_id
+        `;
+        const insertValues = [floatLat, floatLon, location_name.trim(), country.trim(), description ? description.trim() : null];
+        const { rows: insertedRows } = await db.query(insertQuery, insertValues);
 
-        // const newLocationId = uuidv4(); // REMOVE THIS
-        const newLocationData = {
-            // location_id: newLocationId, // REMOVE THIS (DB will generate it)
-            latitude: parseFloat(latitude),
-            longitude: parseFloat(longitude),
-            location_name: location_name.trim(),
-            country: country.trim(),
-            description: description ? description.trim() : null,
-        };
-
-        const { data: insertedLocation, error: insertError } = await supabase
-            .from('location')
-            .insert(newLocationData)
-            .select('location_id') // Select to confirm insertion and get the generated ID
-            .single();
-
-        if (insertError) {
-            console.error('Error inserting new location:', insertError);
-            if (insertError.code === '23505') { 
-                return res.status(409).json({ error: 'Location entry conflict. It might have just been created.' });
-            }
-            return res.status(500).json({ error: 'Failed to create new location.' });
-        }
-        
-        if (!insertedLocation || !insertedLocation.location_id) { // Check if location_id is returned
-             console.error('Failed to create new location (no location_id returned after insert). Inserted data:', insertedLocation);
-             return res.status(500).json({ error: 'Failed to create new location (no location_id returned after insert).' });
-        }
-
-        return res.status(201).json({ location_id: insertedLocation.location_id, existed: false });
+        return res.status(201).json({ location_id: insertedRows[0].location_id, existed: false });
 
     } catch (err) {
+        // This catch block handles a "race condition"
+        // If the error is a unique violation, it means another request created the location
+        // between our SELECT and INSERT. In that case, we can safely re-query for the now-existing location.
+        if (err.code === '23505' && err.constraint === 'location_lat_lon_unique') {
+            console.log('Race condition detected, re-fetching existing location.');
+            try {
+                const findQuery = 'SELECT location_id FROM location WHERE latitude = $1 AND longitude = $2';
+                const { rows: raceRows } = await db.query(findQuery, [floatLat, floatLon]);
+                if (raceRows.length > 0) {
+                    return res.json({ location_id: raceRows[0].location_id, existed: true });
+                }
+            } catch (refetchErr) {
+                 console.error('Find-or-create location re-fetch error after race condition:', refetchErr);
+                 return res.status(500).json({ error: 'An unexpected error occurred while processing the location.' });
+            }
+        }
+
         console.error('Find-or-create location unexpected error:', err);
         res.status(500).json({ error: 'An unexpected error occurred while processing the location.' });
     }

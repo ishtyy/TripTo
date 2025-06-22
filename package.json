@@ -1,6 +1,0 @@
-{
-  "dependencies": {
-    "claude-code": "^0.0.2",
-    "psql": "^0.0.1"
-  }
-}

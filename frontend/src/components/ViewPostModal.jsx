@@ -1,46 +1,44 @@
-// frontend/src/components/ViewPostModal.jsx
 import React from 'react';
-import { X } from 'lucide-react';
+import { X, User, MapPin, Calendar } from 'lucide-react';
 
 export default function ViewPostModal({ open, onClose, post }) {
   if (!open || !post) return null;
 
   return (
-    <div className="fixed inset-0 bg-black bg-opacity-75 flex justify-center items-center z-[60] p-4"> {/* Higher z-index */}
-      <div className="bg-gray-800 rounded-lg w-full max-w-2xl p-6 md:p-8 relative flex flex-col shadow-xl max-h-[90vh]">
-        <button
-          onClick={onClose}
-          className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
-          aria-label="Close modal"
-        >
-          <X size={24} />
-        </button>
-
-        <h2 className="text-2xl md:text-3xl font-heading mb-4 text-sky-300 break-words">
+    <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
+      <div className="bg-gray-900/80 border border-gray-700/80 rounded-xl shadow-2xl shadow-purple-900/20 p-6 md:p-8 max-w-3xl w-full relative flex flex-col max-h-[90vh]">
+        <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors"><X size={20} /></button>
+        
+        <h2 className="text-3xl md:text-4xl font-bold text-purple-300 break-words mb-4">
           {post.title}
         </h2>
 
-        <div className="overflow-y-auto pr-2 text-gray-200 flex-grow">
-          <div className="mb-4 text-sm text-gray-400 border-b border-gray-700 pb-3">
-            <p>By: <span className="font-medium text-gray-300">{post.user_profile?.username || "Unknown User"}</span></p>
+        <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mb-4 text-sm text-gray-400 border-b border-t border-gray-800 py-3">
+            <div className="flex items-center gap-2">
+                <User size={14} className="text-gray-500" />
+                <span>By: <span className="font-medium text-gray-300">{post.user_profile?.username || "Unknown"}</span></span>
+            </div>
             {post.location && (
-              <p>Location: <span className="text-gray-300">{post.location.location_name}{post.location.country ? `, ${post.location.country}` : ""}</span></p>
+                <div className="flex items-center gap-2">
+                    <MapPin size={14} className="text-gray-500" />
+                    <span className="text-gray-300">{post.location.location_name}{post.location.country ? `, ${post.location.country}` : ""}</span>
+                </div>
             )}
-            <p>Posted: <span className="text-gray-300">{new Date(post.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span></p>
-          </div>
-          
-          {/* Using whitespace-pre-wrap to respect newlines and wrap text */}
-          <p className="text-base leading-relaxed whitespace-pre-wrap">
+             <div className="flex items-center gap-2">
+                <Calendar size={14} className="text-gray-500" />
+                <span className="text-gray-300">{new Date(post.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span>
+            </div>
+        </div>
+
+        <div className="overflow-y-auto pr-2 text-gray-200 flex-grow custom-scrollbar">
+          <p className="text-base md:text-lg leading-relaxed whitespace-pre-wrap">
             {post.content}
           </p>
         </div>
 
-        <div className="mt-6 pt-4 border-t border-gray-700 text-right">
-          <button
-            type="button"
-            onClick={onClose}
-            className="px-5 py-2.5 rounded bg-ocean hover:bg-ocean/90 text-white font-medium transition-colors"
-          >
+        <div className="mt-8 pt-4 border-t border-gray-700 flex justify-end">
+          <button type="button" onClick={onClose}
+            className="px-6 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-700 text-white font-semibold transition-colors focus:outline-none focus:ring-2 focus:ring-cyan-400">
             Close
           </button>
         </div>

@@ -1,14 +1,11 @@
-// tempo/backend/src/routes/flightRoutes.js
+
 const express = require('express');
 const Amadeus = require('amadeus'); // This import is necessary
 const amadeus = require('../services/amadeus'); // This is your initialized SDK
 
 const router = express.Router();
 
-/**
- * Endpoint for text search (autocomplete)
- * GET /api/flights/search-locations?keyword=...
- */
+
 router.get('/search-locations', async (req, res) => {
   const { keyword } = req.query;
   if (!keyword || keyword.length < 2) {
@@ -30,10 +27,6 @@ router.get('/search-locations', async (req, res) => {
   }
 });
 
-/**
- * Endpoint for map clicks
- * GET /api/flights/search-by-coords?lat=...&lng=...
- */
 router.get('/search-by-coords', async (req, res) => {
     const { lat, lng } = req.query;
     if (!lat || !lng) {
@@ -54,10 +47,7 @@ router.get('/search-by-coords', async (req, res) => {
 });
 
 
-/**
- * Endpoint for finding flight deals
- * GET /api/flights/offers?origin=...&destination=...&date=...
- */
+
 router.get('/offers', async (req, res) => {
   const { origin, destination, date } = req.query;
   if (!origin || !destination || !date) {

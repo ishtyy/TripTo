@@ -1,110 +1,60 @@
-// frontend/src/components/SignUpModal.jsx
 import React, { useState } from "react";
 import api from "../services/api.js";
-import Modal from "./Modal.jsx"; // Assuming Modal.jsx is in the same directory
+import Modal from "./Modal.jsx";
 
 export default function SignUpModal({ open, onClose, onSuccess }) {
-  const [username, setUsername] = useState(""); // Add state for username
+  const [username, setUsername] = useState("");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [errorMsg, setErrorMsg] = useState("");
 
-  async function handleSignUp(e) {
+  const handleSignUp = async (e) => {
     e.preventDefault();
     setErrorMsg("");
-
-    if (!username.trim()) { // Basic client-side validation
-        setErrorMsg("Username is required.");
+    if (!username.trim() || !email.trim() || !password) {
+        setErrorMsg("All fields are required.");
         return;
     }
-    if (!email.trim()) {
-        setErrorMsg("Email is required.");
-        return;
-    }
-    if (!password) { // Password can have leading/trailing spaces if desired, so no trim by default
-        setErrorMsg("Password is required.");
-        return;
-    }
-
-
     try {
-      // Ensure all three fields are sent to the backend
-      const res = await api.post("/auth/register", {
-        username: username.trim(), // Send username
-        email: email.trim(),
-        password: password, // Send password as is (backend can trim if needed, bcrypt handles spaces)
-      });
-      // Assuming onSuccess expects (user, token)
-      // The backend /auth/register currently returns { user, token }
-      onSuccess(res.data.user, res.data.token); 
+      const res = await api.post("/auth/register", { username: username.trim(), email: email.trim(), password });
+      onSuccess(res.data.user, res.data.token);
       onClose();
     } catch (err) {
-      console.error("Sign Up Error:", err.response?.data || err.message);
-      const msg = err.response?.data?.error || "Registration failed. Please try again.";
-      setErrorMsg(msg);
+      setErrorMsg(err.response?.data?.error || "Registration failed.");
     }
-  }
+  };
 
-  // Reset fields when modal is closed or opened
   React.useEffect(() => {
-    if (open) {
-        setUsername("");
-        setEmail("");
-        setPassword("");
-        setErrorMsg("");
-    }
+    if (open) { setUsername(""); setEmail(""); setPassword(""); setErrorMsg(""); }
   }, [open]);
 
   return (
     <Modal open={open} onClose={onClose}>
-      <h2 className="text-2xl font-heading text-sky-400 mb-4">Sign Up</h2>
-      {errorMsg && (
-        <p className="bg-red-100 border border-red-400 text-red-700 px-3 py-2 rounded-md text-sm mb-3">
-            {errorMsg}
-        </p>
-      )}
+      <h2 className="text-2xl font-bold text-purple-400 mb-4 text-center">Create Account</h2>
+      {errorMsg && <p className="text-red-400 bg-red-900/30 p-2 rounded-md text-sm mb-4 text-center">{errorMsg}</p>}
       <form onSubmit={handleSignUp} className="space-y-4">
         <div>
-          <label htmlFor="signup-username" className="block text-sm font-medium text-gray-200 mb-1">Username</label>
-          <input
-            id="signup-username"
-            type="text"
-            className="w-full px-3 py-2 rounded bg-gray-900 text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-sky-400 border border-gray-700"
-            value={username}
-            onChange={(e) => setUsername(e.target.value)}
-            required
-            autoComplete="username"
-          />
+          <label className="block text-gray-300 mb-1 text-sm">Username</label>
+          <input id="signup-username" type="text"
+            className="w-full px-4 py-2 rounded-lg bg-gray-800 text-white placeholder-gray-500 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"
+            value={username} onChange={(e) => setUsername(e.target.value)} required autoComplete="username" />
         </div>
         <div>
-          <label htmlFor="signup-email" className="block text-sm font-medium text-gray-200 mb-1">Email</label>
-          <input
-            id="signup-email"
-            type="email"
-            className="w-full px-3 py-2 rounded bg-gray-900 text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-sky-400 border border-gray-700"
-            value={email}
-            onChange={(e) => setEmail(e.target.value)}
-            required
-            autoComplete="email"
-          />
+          <label className="block text-gray-300 mb-1 text-sm">Email</label>
+          <input id="signup-email" type="email"
+            className="w-full px-4 py-2 rounded-lg bg-gray-800 text-white placeholder-gray-500 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"
+            value={email} onChange={(e) => setEmail(e.target.value)} required autoComplete="email" />
         </div>
         <div>
-          <label htmlFor="signup-password" className="block text-sm font-medium text-gray-200 mb-1">Password</label>
-          <input
-            id="signup-password"
-            type="password"
-            className="w-full px-3 py-2 rounded bg-gray-900 text-gray-100 placeholder-gray-500 focus:outline-none focus:ring-2 focus:ring-sky-400 border border-gray-700"
-            value={password}
-            onChange={(e) => setPassword(e.target.value)}
-            required
-            autoComplete="new-password"
-          />
+          <label className="block text-gray-300 mb-1 text-sm">Password</label>
+          <input id="signup-password" type="password"
+            className="w-full px-4 py-2 rounded-lg bg-gray-800 text-white placeholder-gray-500 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-purple-500 focus:border-purple-500 transition"
+            value={password} onChange={(e) => setPassword(e.target.value)} required autoComplete="new-password" />
         </div>
-        <button
-          type="submit"
-          className="w-full px-4 py-2.5 bg-sunset hover:bg-sunset/90 text-white rounded-md font-semibold transition-colors"
+        <button type="submit"
+          className="w-full px-4 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold transition-all duration-200 shadow-lg shadow-purple-600/20 hover:shadow-purple-600/40"
         >
-          Create Account
+          Sign Up
         </button>
       </form>
     </Modal>
