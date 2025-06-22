@@ -1,5 +1,4 @@
 import React, { useEffect } from "react";
-import ReactDOM from "react-dom"; // Import ReactDOM
 import { X } from "lucide-react";
 
 export default function Modal({ open, onClose, children }) {
@@ -19,8 +18,9 @@ export default function Modal({ open, onClose, children }) {
 
   if (!open) return null;
 
-  // Use ReactDOM.createPortal to render the modal into the 'modal-root' div
-  return ReactDOM.createPortal(
+  return (
+    // The 'fixed' class ensures the modal is positioned relative to the viewport.
+    // The animation class 'animate-fade-in' uses only opacity to prevent positioning bugs.
     <div
       className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in"
       onClick={onClose}
@@ -37,7 +37,6 @@ export default function Modal({ open, onClose, children }) {
         </button>
         {children}
       </div>
-    </div>,
-    document.getElementById("modal-root")
+    </div>
   );
 }
