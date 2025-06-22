@@ -1,22 +1,37 @@
 // frontend/src/services/api.js
+import axios from 'axios';
 
-import axios from "axios";
+const API_BASE_URL = 'http://localhost:5000/api';
 
-// Adjust this baseURL if your Express server runs somewhere else (e.g. production).
 const api = axios.create({
-  baseURL: "http://localhost:5000/api",
+  baseURL: API_BASE_URL,
   headers: {
-    "Content-Type": "application/json",
+    'Content-Type': 'application/json',
   },
 });
 
-// If your login/register endpoints return a JWT, we want to attach it automatically:
-api.interceptors.request.use((config) => {
-  const token = localStorage.getItem("tripto_token");
-  if (token) {
-    config.headers.Authorization = `Bearer ${token}`;
+// Add request interceptor for debugging
+api.interceptors.request.use(
+  (config) => {
+    console.log(`[API] ${config.method?.toUpperCase()} ${config.url}`, config.data);
+    return config;
+  },
+  (error) => {
+    console.error('[API] Request Error:', error);
+    return Promise.reject(error);
   }
-  return config;
-});
+);
+
+// Add response interceptor for debugging
+api.interceptors.response.use(
+  (response) => {
+    console.log(`[API] Response from ${response.config.url}:`, response.data);
+    return response;
+  },
+  (error) => {
+    console.error('[API] Response Error:', error.response?.data || error.message);
+    return Promise.reject(error);
+  }
+);
 
 export default api;

@@ -1,89 +1,47 @@
 // backend/src/app.js
-require('dotenv').config();      // ← must come first!
+require("dotenv").config();
+const express  = require("express");
+const cors     = require("cors");
 
-const path = require('path');
-const express = require('express');
-const cors    = require('cors');
-const pgp     = require('pg-promise')();
+const supabase = require("./config/supabaseClient");
 
-// your DB + SQL loader
-const cn = { connectionString: process.env.DATABASE_URL };
-const db = pgp(cn);
-function loadQuery(file) {
-  return new pgp.QueryFile(path.join(__dirname, '..', 'sql', file), { minify: true });
-}
-const sql = {
-  auth: {
-    register: loadQuery('queries/auth/register.sql'),
-    login:    loadQuery('queries/auth/login.sql'),
-  },
-  users: {
-    getProfile:         loadQuery('queries/users/getUserProfile.sql'),
-    getUserCommunities: loadQuery('queries/users/getUserCommunities.sql'),
-  },
-  communities: {
-    getAll:         loadQuery('queries/communities/getAllCommunities.sql'),
-    getById:        loadQuery('queries/communities/getCommunityById.sql'),
-    create:         loadQuery('queries/communities/createCommunity.sql'),
-    getMembership:  loadQuery('queries/communities/getMembership.sql'),
-    join:           loadQuery('queries/communities/joinCommunity.sql'),
-    leave:          loadQuery('queries/communities/leaveCommunity.sql'),
-    getMembers:     loadQuery('queries/communities/getMembers.sql'),
-  },
-  community_posts: {
-    getByCommunity: loadQuery('queries/community_posts/getPostsByCommunity.sql'),
-    create:         loadQuery('queries/community_posts/createCommunityPost.sql'),
-  },
-  blog: {
-    getPosts: loadQuery('queries/blog/getPosts.sql'),
-    create:   loadQuery('queries/blog/createPost.sql'),
-  },
-  locations: {
-    findOrCreate: loadQuery('queries/locations/findOrCreateLocation.sql'),
-  }
-};
+const authRoutes      = require("./routes/authRoutes");
+const communityRoutes = require("./routes/communityRoutes");
+const postsRoutes     = require("./routes/postsRoutes");
+const usersRoutes     = require("./routes/usersRoutes");
+const locationRoutes  = require('./routes/locationRoutes');
+const communityPostRoutes = require('./routes/communityPostRoutes');
+//const flightRoutes = require('./routes/flightRoutes'); // 1. Import new flight routes
 
 const app = express();
 
-// allow your React dev server (or any) to talk to this API
-app.use(cors({ origin: 'http://localhost:5173' }));
+app.use(
+  cors({
+    origin: "http://localhost:5173",
+    methods: ["GET","POST","PUT","DELETE","OPTIONS"],
+    allowedHeaders: ["Content-Type","Authorization"],
+  })
+);
 app.use(express.json());
 
-// example “blog” endpoints—repeat for auth, communities, etc.
+app.get("/api/ping", (_req, res) => res.json({ pong: true, timestamp: new Date().toISOString() }));
 
-// right after you `app.use(express.json());`
-app.get('/api/debug/posts', async (_req, res) => {
-  try {
-    // this uses pg-promise directly to run a raw SQL string
-    const rows = await db.any('SELECT * FROM blogpost LIMIT 5;');
-    res.json({ sample: rows });
-  } catch (err) {
-    console.error('Debug /api/debug/posts error:', err);
-    res.status(500).json({ error: 'Unable to fetch debug posts' });
-  }
+// API Routes
+app.use("/api/auth", authRoutes);
+app.use("/api/communities", communityRoutes);
+app.use("/api/posts", postsRoutes);
+app.use("/api/community-posts", communityPostRoutes);
+app.use("/api/users", usersRoutes);
+app.use('/api/locations', locationRoutes);
+//app.use('/api/flights', flightRoutes); // 2. Mount the new routes
+
+app.use((err, _req, res, _next) => {
+  console.error("Global Error Handler Caught:", err);
+  res.status(err.status || 500).json({ 
+    error: err.message || "Internal server error" 
+  });
 });
 
-app.post('/api/posts', async (req, res) => {
-  try {
-    const { title, content, location_id } = req.body;
-    const newPost = await db.one(sql.blog.create, { title, content, location_id });
-    res.status(201).json({ post: newPost });
-  } catch (err) {
-    console.log('Create Post Error:', err);
-    console.error('Create Post Error:', err);
-    res.status(500).json({ error: 'Could not create post' });
-  }
-});
-
-// … mount the rest of your endpoints here in the same fashion …
-
-// catch-all error handler
-app.use((err, req, res, next) => {
-  console.error('Unhandled Error:', err);
-  res.status(500).json({ error: 'Internal server error' });
-});
-
-// finally, start listening:
 const PORT = process.env.PORT || 5000;
 app.listen(PORT, () => {
   console.log(`🚀 Backend listening on port ${PORT}`);
