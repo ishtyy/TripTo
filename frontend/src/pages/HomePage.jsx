@@ -1,10 +1,17 @@
-// frontend/src/pages/HomePage.jsx
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
+import { useNavigate } from "react-router-dom";
 import api from "../services/api.js";
 import BlogModal from "../components/BlogModal.jsx";
 import ViewPostModal from "../components/ViewPostModal.jsx";
-import { Plus, ExternalLink, Rss } from "lucide-react";
+import { Plus, Rss, Search, ChevronDown, Compass, Users, FileText } from "lucide-react";
 import { PostCardSkeleton } from "../components/PostCardSkeleton.jsx";
+import BlogPostCard from "../components/BlogPostCard.jsx";
+
+const searchOptions = [
+    { id: 'destinations', label: 'Destinations', icon: Compass },
+    { id: 'posts', label: 'Posts', icon: FileText },
+    { id: 'communities', label: 'Communities', icon: Users },
+];
 
 export default function HomePage({ user, onTriggerSignIn }) {
   const [posts, setPosts] = useState([]);
@@ -12,100 +19,78 @@ export default function HomePage({ user, onTriggerSignIn }) {
   const [fetchPostsError, setFetchPostsError] = useState("");
   const [isBlogModalOpen, setIsBlogModalOpen] = useState(false);
   const [selectedPostForView, setSelectedPostForView] = useState(null);
-  const [isViewPostModalOpen, setIsViewPostModalOpen] = useState(false);
-
-  async function fetchPosts() {
-    setIsLoadingPosts(true);
-    setFetchPostsError("");
-    console.log("[HomePage] Fetching posts...");
-    try {
-      const res = await api.get("/posts");
-      setPosts(res.data.posts || []);
-    } catch (err) {
-      console.error("[HomePage] Fetch Posts Error:", err.response || err.message);
-      setFetchPostsError(err.response?.data?.error || "Could not load posts. Please try again later.");
-      setPosts([]);
-    } finally {
-      setIsLoadingPosts(false);
-    }
-  }
+  const [searchCategory, setSearchCategory] = useState(searchOptions[0]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+  const navigate = useNavigate();
 
   useEffect(() => {
-    fetchPosts();
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
 
-  const handlePostCreated = (newPost) => {
-    setPosts((prevPosts) => [newPost, ...prevPosts]);
+  const [dataVersion, setDataVersion] = useState(0);
+  const refreshPosts = () => {
+    setDataVersion(v => v + 1);
     setIsBlogModalOpen(false);
   };
 
+  useEffect(() => {
+    async function fetchPosts() {
+      setIsLoadingPosts(true);
+      setFetchPostsError("");
+      try {
+        const res = await api.get("/posts");
+        setPosts(res.data.posts || []);
+      } catch (err) {
+        setFetchPostsError("Could not load posts. Please try again later.");
+      } finally {
+        setIsLoadingPosts(false);
+      }
+    }
+    fetchPosts();
+  }, [dataVersion]);
+
   const handleViewPost = (post) => {
     setSelectedPostForView(post);
-    setIsViewPostModalOpen(true);
+  };
+
+  const handleSearch = () => {
+    if (!searchTerm.trim()) return;
+    navigate(`/search?type=${searchCategory.id}&q=${encodeURIComponent(searchTerm)}`);
   };
 
   return (
-      <div className="space-y-12 animate-fade-in-up">
-    <div className="space-y-8">
-      <div className="flex flex-col md:flex-row justify-between items-center gap-4">
-        <h1 className="text-3xl md:text-4xl font-bold text-white flex items-center gap-3">
-          <Rss className="text-purple-400" />
-          Recent Posts
-        </h1>
-        {user && (
-          <button
-            onClick={() => setIsBlogModalOpen(true)}
-            className="flex items-center gap-2 px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold transition-all duration-200 shadow-lg shadow-purple-600/20 hover:shadow-purple-600/40"
-          >
-            <Plus size={20} />
-            <span>New Post</span>
-          </button>
+    <div className="space-y-12">
+      
+
+      <section>
+        <div className="flex justify-between items-center mb-6">
+          <h2 className="text-3xl font-bold text-white flex items-center gap-3"><Rss className="text-purple-400"/>Recent Posts</h2>
+          {user && ( <button onClick={() => setIsBlogModalOpen(true)} className="flex items-center gap-2 px-5 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold transition-all duration-200 shadow-lg shadow-purple-600/20 hover:shadow-purple-600/40"> <Plus size={20} /> <span>New Post</span> </button> )}
+        </div>
+        
+        {isLoadingPosts ? (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {[...Array(6)].map((_, i) => <PostCardSkeleton key={i} />)}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {posts.map((post, index) => (
+              <BlogPostCard key={post.post_id} post={post} onCardClick={handleViewPost} animationDelay={index * 100} />
+            ))}
+          </div>
         )}
-      </div>
+      </section>
 
-      {isLoadingPosts && <p className="text-center py-10 text-gray-400">Loading posts...</p>}
-      {fetchPostsError && <div className="text-center py-10 text-red-400 bg-red-900/30 p-4 rounded-md">{fetchPostsError}</div>}
-
-      {!isLoadingPosts && !fetchPostsError && posts.length === 0 && (
-        <div className="text-center py-16 bg-gray-900/50 rounded-xl">
-          <p className="text-gray-400 text-lg">No posts yet. Be the first to share!</p>
-          {!user && (
-            <p className="text-gray-500 mt-2">
-              <button onClick={onTriggerSignIn} className="text-purple-400 hover:text-purple-300 font-semibold underline">Sign in</button> to create a post.
-            </p>
-          )}
-        </div>
-      )}
-
-      {!isLoadingPosts && !fetchPostsError && posts.length > 0 && (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {posts.map((post) => (
-            <div
-              key={post.post_id}
-              className="bg-gray-900/80 rounded-xl p-5 shadow-lg border-2 border-gray-800 hover:border-purple-600 transition-all duration-300 flex flex-col justify-between cursor-pointer group hover:shadow-2xl hover:shadow-purple-600/20"
-              onClick={() => handleViewPost(post)}
-            >
-              <div>
-                <h3 className="text-xl font-bold text-white group-hover:text-purple-300 mb-2 truncate transition-colors" title={post.title}>
-                  {post.title}
-                </h3>
-                <p className="text-gray-400 text-sm mb-4 line-clamp-3">{post.content}</p>
-              </div>
-              <div className="mt-auto pt-4 border-t border-gray-700/50 text-xs text-gray-500 space-y-1">
-                <p>By: <span className="font-medium text-gray-300">{post.user_profile?.username || "Unknown"}</span></p>
-                <p>Location: <span className="font-medium text-gray-300">{post.location?.location_name || "N/A"}</span></p>
-                <div className="text-purple-400 group-hover:text-purple-300 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pt-2 flex items-center text-sm font-semibold">
-                    View Post <ExternalLink size={14} className="ml-1.5"/>
-                </div>
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
-
-      {isBlogModalOpen && <BlogModal open={isBlogModalOpen} onClose={() => setIsBlogModalOpen(false)} onPostCreated={ (newPost) => { setPosts(p => [newPost, ...p]); setIsBlogModalOpen(false); }} user={user} onTriggerSignIn={onTriggerSignIn} />}
-      <ViewPostModal open={isViewPostModalOpen} onClose={() => setIsViewPostModalOpen(false)} post={selectedPostForView} />
-    </div>
+      <BlogModal open={isBlogModalOpen} onClose={() => setIsBlogModalOpen(false)} onPostCreated={refreshPosts} user={user} onTriggerSignIn={onTriggerSignIn} />
+      <ViewPostModal open={!!selectedPostForView} onClose={() => setSelectedPostForView(null)} post={selectedPostForView} />
     </div>
   );
 }
