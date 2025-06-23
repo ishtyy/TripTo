@@ -13,7 +13,7 @@ const QuotedPost = ({ post }) => (
     </div>
 );
 
-export default function ViewPostModal({ open, onClose, post }) {
+export default function ViewPostModal({ open, onClose, post, loggedInUser }) {
     const [votes, setVotes] = useState({ up: 0, down: 0 });
     const [isCascadeModalOpen, setIsCascadeModalOpen] = useState(false);
 
@@ -26,20 +26,26 @@ export default function ViewPostModal({ open, onClose, post }) {
     if (!open || !post) return null;
 
     const handleVote = async (voteType) => {
+        if (!loggedInUser) {
+            alert("You must be signed in to vote.");
+            return;
+        }
         try {
             const res = await api.post(`/posts/${post.post_id}/vote`, { vote_type: voteType });
             setVotes({ up: res.data.upvote_count, down: res.data.downvote_count });
         } catch (error) {
-            console.error("Failed to vote:", error);
-            alert("Login required to vote.");
+            alert("An error occurred while voting. You may need to sign in again.");
         }
     };
-
-    const handleCascadeSuccess = () => {
-        setIsCascadeModalOpen(false);
-        onClose(); // Close the main modal after a successful cascade
-    };
     
+    const openCascadeModal = () => {
+        if (!loggedInUser) {
+            alert("You must be signed in to cascade a post.");
+            return;
+        }
+        setIsCascadeModalOpen(true);
+    };
+
     return (
         <>
             <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
@@ -59,17 +65,17 @@ export default function ViewPostModal({ open, onClose, post }) {
                     </div>
                     <div className="mt-6 pt-4 border-t border-gray-700 flex items-center justify-between">
                         <div className="flex items-center gap-2">
-                            <button onClick={() => handleVote(1)} className="p-2 rounded-full bg-gray-800 hover:bg-green-500/20 text-gray-400 hover:text-green-400 transition-colors"><ArrowUp size={20} /></button>
+                            <button onClick={() => handleVote(1)} disabled={!loggedInUser} className="p-2 rounded-full bg-gray-800 hover:bg-green-500/20 text-gray-400 hover:text-green-400 transition-colors disabled:hover:bg-gray-800 disabled:text-gray-600 disabled:cursor-not-allowed" title={!loggedInUser ? "Sign in to vote" : "Upvote"}><ArrowUp size={20} /></button>
                             <span className="font-bold text-white w-8 text-center">{votes.up - votes.down}</span>
-                            <button onClick={() => handleVote(-1)} className="p-2 rounded-full bg-gray-800 hover:bg-red-500/20 text-gray-400 hover:text-red-400 transition-colors"><ArrowDown size={20} /></button>
-                            <button onClick={() => setIsCascadeModalOpen(true)} className="flex items-center gap-2 ml-4 px-4 py-2 rounded-lg bg-purple-600/80 hover:bg-purple-600 text-white font-semibold text-sm"><Repeat size={16}/>Cascade</button>
+                            <button onClick={() => handleVote(-1)} disabled={!loggedInUser} className="p-2 rounded-full bg-gray-800 hover:bg-red-500/20 text-gray-400 hover:text-red-400 transition-colors disabled:hover:bg-gray-800 disabled:text-gray-600 disabled:cursor-not-allowed" title={!loggedInUser ? "Sign in to vote" : "Downvote"}><ArrowDown size={20} /></button>
+                            <button onClick={openCascadeModal} disabled={!loggedInUser} className="flex items-center gap-2 ml-4 px-4 py-2 rounded-lg bg-purple-600/80 hover:bg-purple-600 text-white font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed" title={!loggedInUser ? "Sign in to Cascade" : "Cascade"}><Repeat size={16}/>Cascade</button>
                         </div>
                         <button type="button" onClick={onClose} className="px-6 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-700 text-white font-semibold">Close</button>
                     </div>
                 </div>
             </div>
             
-            <CascadeModal open={isCascadeModalOpen} onClose={() => setIsCascadeModalOpen(false)} originalPost={post} onCascadeCreated={handleCascadeSuccess} />
+            {loggedInUser && <CascadeModal open={isCascadeModalOpen} onClose={() => setIsCascadeModalOpen(false)} originalPost={post} onCascadeCreated={onClose} />}
         </>
     );
 }

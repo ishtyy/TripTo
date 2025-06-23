@@ -1,8 +1,8 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { Repeat } from 'lucide-react';
+import { Repeat, ExternalLink } from 'lucide-react';
 
-// A sub-component for the embedded parent post
+// A sub-component for the embedded parent post (used for Cascades)
 const QuotedPost = ({ post }) => (
     <div className="mt-3 p-3 border-l-4 border-purple-800 bg-gray-800/50 rounded-r-lg">
         <div className="text-sm text-gray-400 mb-1">
@@ -12,7 +12,6 @@ const QuotedPost = ({ post }) => (
         <p className="text-gray-400 text-sm line-clamp-2">{post.content}</p>
     </div>
 );
-
 
 export default function BlogPostCard({ post, onCardClick, animationDelay = 0 }) {
   return (
@@ -33,12 +32,14 @@ export default function BlogPostCard({ post, onCardClick, animationDelay = 0 }) 
         </h3>
         <p className="text-gray-400 text-sm mb-2 line-clamp-3">{post.content}</p>
         
-        {/* If it's a cascade, show the embedded parent post */}
         {post.parent_post && <QuotedPost post={post.parent_post} />}
       </div>
       
-      <div className="mt-4 pt-4 border-t border-gray-700/50 text-xs text-gray-500">
-        <p>By: <span className="font-medium text-gray-300">{post.user_profile?.username || "Unknown"}</span></p>
+      <div className="mt-4 pt-4 border-t border-gray-700/50 text-xs text-gray-500 space-y-1">
+        <p>By: <Link to={`/profile/${post.author_id}`} className="font-medium text-gray-300 hover:underline">{post.user_profile?.username || "Unknown"}</Link></p>
+        <div className="text-purple-400 group-hover:text-purple-300 opacity-0 group-hover:opacity-100 transition-opacity duration-300 pt-2 flex items-center text-sm font-semibold">
+            View Post <ExternalLink size={14} className="ml-1.5"/>
+        </div>
       </div>
     </div>
   );

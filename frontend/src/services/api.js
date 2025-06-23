@@ -10,10 +10,9 @@ const api = axios.create({
   },
 });
 
-// Add request interceptor for debugging and AUTH
+// This interceptor adds the auth token to every outgoing request
 api.interceptors.request.use(
   (config) => {
-    // This is the key change: get the token and add it to the header
     const token = localStorage.getItem('tripto_token');
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
@@ -27,15 +26,14 @@ api.interceptors.request.use(
   }
 );
 
-// Add response interceptor for debugging
+// This interceptor watches for responses from the backend
 api.interceptors.response.use(
   (response) => {
     console.log(`[API] Response from ${response.config.url}:`, response.data);
     return response;
   },
   (error) => {
-    // NEW: Listen for 401 errors, which might mean the token is expired.
-    // Dispatch a global event that App.jsx can listen for to trigger a logout.
+    // If the error is a 401, dispatch a global 'auth-expired' event
     if (error.response?.status === 401) {
         console.warn("[API] Received 401 Unauthorized. Dispatching 'auth-expired' event.");
         window.dispatchEvent(new CustomEvent("auth-expired"));
