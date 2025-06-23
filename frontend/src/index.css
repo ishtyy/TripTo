@@ -160,3 +160,8 @@ body {
 .animate-fade-in {
   animation: fade-in 0.3s ease-out forwards;
 }
+
+/* Add this class at the end of your file */
+.dark-calendar-picker {
+  color-scheme: dark;
+}

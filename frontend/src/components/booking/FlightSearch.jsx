@@ -1,25 +1,38 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { Plane, Search, Loader2, ArrowRight } from 'lucide-react';
 import api from '../../services/api';
 
-const LocationInput = ({ label, value, onValueChange, suggestions, onSuggestionClick }) => (
-    <div className="relative w-full">
-        <label className="block text-sm font-medium text-gray-300 mb-1.5">{label}</label>
-        <input type="text" placeholder="City or Airport" value={value} onChange={(e) => onValueChange(e.target.value)} autoComplete="off" className="w-full px-4 py-3 rounded-lg bg-gray-800 text-white placeholder-gray-500 border-2 border-gray-700 focus:outline-none focus:border-cyan-500 transition-colors" />
-        {suggestions.length > 0 && (
-            <div className="absolute top-full mt-1 w-full bg-gray-900 border border-gray-700 rounded-lg shadow-2xl z-20 max-h-60 overflow-y-auto">
-                <ul>
-                    {suggestions.map(suggestion => (
-                        <li key={suggestion.id} onClick={() => onSuggestionClick(suggestion)} className="p-3 hover:bg-cyan-600/20 cursor-pointer transition-colors">
-                            <p className="font-semibold text-white">{suggestion.name} ({suggestion.iataCode})</p>
-                            <p className="text-sm text-gray-400">{suggestion.address.cityName}, {suggestion.address.countryName}</p>
-                        </li>
-                    ))}
-                </ul>
-            </div>
-        )}
-    </div>
-);
+const LocationInput = ({ label, value, onValueChange, suggestions, onSuggestionClick }) => {
+    return (
+        <div className="relative w-full">
+            <label className="block text-sm font-medium text-gray-300 mb-1.5">{label}</label>
+            <input
+                type="text"
+                placeholder="City or Airport"
+                value={value}
+                onChange={(e) => onValueChange(e.target.value)}
+                autoComplete="off"
+                className="w-full px-4 py-3 rounded-lg bg-gray-800 text-white placeholder-gray-500 border-2 border-gray-700 focus:outline-none focus:border-cyan-500 transition-colors"
+            />
+            {suggestions.length > 0 && (
+                <div className="absolute top-full mt-1 w-full bg-gray-900 border border-gray-700 rounded-lg shadow-2xl z-20 max-h-60 overflow-y-auto">
+                    <ul>
+                        {suggestions.map(suggestion => (
+                            <li
+                                key={suggestion.id}
+                                onClick={() => onSuggestionClick(suggestion)}
+                                className="p-3 hover:bg-cyan-600/20 cursor-pointer transition-colors"
+                            >
+                                <p className="font-semibold text-white">{suggestion.name} ({suggestion.iataCode})</p>
+                                <p className="text-sm text-gray-400">{suggestion.address.cityName}, {suggestion.address.countryName}</p>
+                            </li>
+                        ))}
+                    </ul>
+                </div>
+            )}
+        </div>
+    );
+};
 
 export default function FlightSearch() {
     const [origin, setOrigin] = useState('');
@@ -34,24 +47,47 @@ export default function FlightSearch() {
     const [error, setError] = useState('');
 
     useEffect(() => {
-        if (origin.length < 2 || (selectedOrigin && origin === `${selectedOrigin.name} (${selectedOrigin.iataCode})`)) { setOriginSuggestions([]); return; }
-        const handler = setTimeout(() => { api.get(`/flights/search-locations?keyword=${origin}`).then(res => setOriginSuggestions(res.data.locations || [])).catch(() => setOriginSuggestions([])); }, 300);
+        if (origin.length < 2 || (selectedOrigin && origin === `${selectedOrigin.name} (${selectedOrigin.iataCode})`)) {
+            setOriginSuggestions([]);
+            return;
+        }
+        const handler = setTimeout(() => {
+            api.get(`/flights/search-locations?keyword=${origin}`)
+               .then(res => setOriginSuggestions(res.data.locations || []))
+               .catch(() => setOriginSuggestions([]));
+        }, 300);
         return () => clearTimeout(handler);
     }, [origin, selectedOrigin]);
 
     useEffect(() => {
-        if (destination.length < 2 || (selectedDestination && destination === `${selectedDestination.name} (${selectedDestination.iataCode})`)) { setDestinationSuggestions([]); return; }
-        const handler = setTimeout(() => { api.get(`/flights/search-locations?keyword=${destination}`).then(res => setDestinationSuggestions(res.data.locations || [])).catch(() => setDestinationSuggestions([])); }, 300);
+        if (destination.length < 2 || (selectedDestination && destination === `${selectedDestination.name} (${selectedDestination.iataCode})`)) {
+            setDestinationSuggestions([]);
+            return;
+        }
+        const handler = setTimeout(() => {
+            api.get(`/flights/search-locations?keyword=${destination}`)
+               .then(res => setDestinationSuggestions(res.data.locations || []))
+               .catch(() => setDestinationSuggestions([]));
+        }, 300);
         return () => clearTimeout(handler);
     }, [destination, selectedDestination]);
 
     const handleSearchFlights = async () => {
-        if (!selectedOrigin || !selectedDestination || !departureDate) { setError('Please select an origin, destination, and departure date.'); return; }
-        setLoading(true); setError(''); setFlightOffers([]);
+        if (!selectedOrigin || !selectedDestination || !departureDate) {
+            setError('Please select an origin, destination, and departure date.');
+            return;
+        }
+        setLoading(true);
+        setError('');
+        setFlightOffers([]);
         try {
             const res = await api.get(`/flights/offers?origin=${selectedOrigin.iataCode}&destination=${selectedDestination.iataCode}&date=${departureDate}`);
             setFlightOffers(res.data.offers || []);
-        } catch (err) { setError('Failed to find flight offers. Please try again.'); } finally { setLoading(false); }
+        } catch (err) {
+            setError('Failed to find flight offers. Please try again.');
+        } finally {
+            setLoading(false);
+        }
     };
 
     return (
@@ -61,14 +97,16 @@ export default function FlightSearch() {
                 <LocationInput label="To (Destination)" value={destination} onValueChange={(val) => { setDestination(val); setSelectedDestination(null); }} suggestions={destinationSuggestions} onSuggestionClick={(s) => { setSelectedDestination(s); setDestination(`${s.name} (${s.iataCode})`); setDestinationSuggestions([]); }} />
                 <div>
                     <label htmlFor="departureDate" className="block text-sm font-medium text-gray-300 mb-1.5">Departure Date</label>
-                    <input id="departureDate" type="date" value={departureDate} onChange={(e) => setDepartureDate(e.target.value)} className="w-full px-4 py-3 rounded-lg bg-gray-800 text-white border-2 border-gray-700 focus:outline-none focus:border-cyan-500 transition-colors" />
+                    <input id="departureDate" type="date" value={departureDate} onChange={(e) => setDepartureDate(e.target.value)} className="w-full px-4 py-3 rounded-lg bg-gray-800 text-white border-2 border-gray-700 focus:outline-none focus:border-cyan-500 transition-colors dark-calendar-picker" />
                 </div>
             </div>
             <button onClick={handleSearchFlights} disabled={loading} className="w-full md:w-auto px-8 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold transition-all duration-200 shadow-lg shadow-purple-600/20 disabled:opacity-50 flex items-center justify-center gap-2">
                 {loading ? <Loader2 className="animate-spin" /> : <Search />}
                 <span>{loading ? 'Searching...' : 'Find Flights'}</span>
             </button>
+
             {error && <p className="text-center text-red-400 bg-red-900/30 p-3 rounded-lg">{error}</p>}
+            
             {flightOffers.length > 0 && (
                 <div className="space-y-4 pt-6 border-t border-gray-800">
                     <h2 className="text-2xl font-bold text-white">Search Results</h2>

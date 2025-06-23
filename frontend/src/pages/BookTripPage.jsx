@@ -1,7 +1,5 @@
 import React, { useState } from "react";
 import { Bed, Plane, Package } from "lucide-react";
-
-// Import the new search components
 import FlightSearch from "../components/booking/FlightSearch";
 import HotelSearch from "../components/booking/HotelSearch";
 import PackageSearch from "../components/booking/PackageSearch";
@@ -32,7 +30,6 @@ export default function BookTripPage() {
           ))}
         </div>
 
-        {/* Conditionally render the correct search component */}
         <div>
           {selectedTab === 'flights' && <FlightSearch />}
           {selectedTab === 'hotels' && <HotelSearch />}
