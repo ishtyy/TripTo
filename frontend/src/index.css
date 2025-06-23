@@ -96,7 +96,7 @@ body {
   color: transparent;
 
   /* Apply the animation */
-  animation: text-gradient-animation 4s ease-in-out infinite;
+  animation: text-gradient-animation 2s ease-in-out infinite;
 }
 
 /* The rest of your CSS file remains the same */
