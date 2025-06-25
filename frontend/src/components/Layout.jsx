@@ -16,7 +16,6 @@ export default function Layout({ user, onSignOut, onTriggerSignIn, onTriggerSign
   const searchRef = useRef(null);
 
   useEffect(() => {
-    // Debounced search to prevent API calls on every keystroke
     if (searchTerm.trim().length > 1) {
       const delayDebounceFn = setTimeout(() => {
         api.get(`/users/search?q=${searchTerm}`)
@@ -36,16 +35,13 @@ export default function Layout({ user, onSignOut, onTriggerSignIn, onTriggerSign
   };
 
   const handleResultClick = (userId) => {
+    if (!userId) return;
     clearSearch();
     navigate(`/profile/${userId}`);
   };
 
-  // Effect to clear search when the page changes
-  useEffect(() => {
-    clearSearch();
-  }, [location]);
+  useEffect(() => { clearSearch(); }, [location]);
 
-  // Effect to handle clicking outside of the search box to close results
   useEffect(() => {
     function handleClickOutside(event) {
       if (searchRef.current && !searchRef.current.contains(event.target)) {
@@ -69,12 +65,7 @@ export default function Layout({ user, onSignOut, onTriggerSignIn, onTriggerSign
             { path: "/communities", icon: MapPin, label: "Communities", tab: "communities" },
             { path: "/book-trip", icon: BookOpen, label: "Book", tab: "book-trip" },
           ].map((item) => (
-            <Link
-              key={item.tab}
-              to={item.path}
-              className={`flex flex-col items-center p-3 rounded-xl w-full text-center transition-all duration-300 relative group ${activeTab === item.tab ? "text-white bg-cyan-600/20" : "text-gray-400 hover:text-white hover:bg-gray-800/60"}`}
-              title={item.label}
-            >
+            <Link key={item.tab} to={item.path} className={`flex flex-col items-center p-3 rounded-xl w-full text-center transition-all duration-300 relative group ${activeTab === item.tab ? "text-white bg-cyan-600/20" : "text-gray-400 hover:text-white hover:bg-gray-800/60"}`} title={item.label}>
               {activeTab === item.tab && (<span className="absolute left-0 top-0 bottom-0 w-1 bg-cyan-500 rounded-r-full shadow-lg shadow-cyan-500/50"></span>)}
               <item.icon size={24} />
               <span className="text-xs mt-1 font-medium">{item.label}</span>
@@ -93,24 +84,14 @@ export default function Layout({ user, onSignOut, onTriggerSignIn, onTriggerSign
 
       <div className="flex-1 flex flex-col bg-dots">
         <header className="bg-gray-900/50 border-b border-gray-800 px-6 py-2 grid grid-cols-3 items-center sticky top-0 z-50 backdrop-blur-sm">
-          <div className="flex justify-start">
-             {/* Left-side spacer */}
-          </div>
-
+          <div className="flex justify-start"></div>
           <div className="relative w-full max-w-lg mx-auto" ref={searchRef}>
             <div className="relative">
                 <Search size={20} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 pointer-events-none" />
-                <input
-                    type="text"
-                    placeholder="Search for travelers..."
-                    className="w-full bg-gray-800/80 border-2 border-transparent focus:border-cyan-500 focus:outline-none pl-11 pr-4 py-2 rounded-full text-white transition-colors"
-                    value={searchTerm}
-                    onChange={(e) => setSearchTerm(e.target.value)}
-                    onFocus={() => setIsSearchFocused(true)}
-                />
+                <input type="text" placeholder="Search for travelers..." className="w-full bg-gray-800/80 border-2 border-transparent focus:border-cyan-500 focus:outline-none pl-11 pr-4 py-2 rounded-full text-white transition-colors" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} onFocus={() => setIsSearchFocused(true)} />
             </div>
             {isSearchFocused && searchTerm && (
-                <div className="absolute top-full mt-2 w-full bg-gray-900 border border-gray-700 rounded-lg shadow-2xl z-20 overflow-hidden animate-fade-in-up" style={{animationDuration: '0.2s'}}>
+                <div className="absolute top-full mt-2 w-full bg-gray-900 border border-gray-700 rounded-lg shadow-2xl z-20 overflow-hidden animate-fade-in" style={{animationDuration: '0.2s'}}>
                     {searchResults.length > 0 ? (
                         <ul>
                             {searchResults.map(u => (
@@ -120,21 +101,16 @@ export default function Layout({ user, onSignOut, onTriggerSignIn, onTriggerSign
                                 </li>
                             ))}
                         </ul>
-                    ) : (
-                        <p className="p-4 text-sm text-gray-400 text-center">No users found for "{searchTerm}".</p>
-                    )}
+                    ) : ( <p className="p-4 text-sm text-gray-400 text-center">No users found for "{searchTerm}".</p> )}
                 </div>
             )}
           </div>
-          
           <div className="flex justify-end items-center space-x-4">
             {user ? (
               <>
                 <button title="Inbox" className="text-gray-400 hover:text-cyan-300"><Inbox size={22} /></button>
                 <button title="Notifications" className="text-gray-400 hover:text-cyan-300"><Bell size={22} /></button>
-                <Link to={`/profile/${user.user_id}`} title="View Profile">
-                  <img src={user.profile_picture_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.username)}&background=22d3ee&color=000&size=36`} alt="User Avatar" className="w-9 h-9 rounded-full border-2 border-cyan-500"/>
-                </Link>
+                <Link to={`/profile/${user.user_id}`} title="View Profile"><img src={user.profile_picture_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.username)}&background=22d3ee&color=000&size=36`} alt="User Avatar" className="w-9 h-9 rounded-full border-2 border-cyan-500"/></Link>
               </>
             ) : (
               <>
@@ -145,7 +121,7 @@ export default function Layout({ user, onSignOut, onTriggerSignIn, onTriggerSign
           </div>
         </header>
         
-        <main className="flex-1 overflow-y-auto p-4 md:p-6 animate-fade-in-up" key={location.pathname}>
+        <main className="flex-1 overflow-y-auto p-4 md:p-6" key={location.pathname}>
           <Outlet />
         </main>
       </div>

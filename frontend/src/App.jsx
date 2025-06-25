@@ -1,5 +1,7 @@
 import React, { useEffect, useState, useCallback } from "react";
 import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
+
+// Layout & Core Pages
 import Layout from "./components/Layout.jsx";
 import HomePage from "./pages/HomePage.jsx";
 import ExplorePage from "./pages/ExplorePage.jsx";
@@ -8,39 +10,42 @@ import ProfilePage from "./pages/ProfilePage.jsx";
 import CommunityPage from "./pages/CommunityPage.jsx";
 import CommunityDetailsPage from "./pages/CommunityDetailsPage.jsx";
 import SearchResultsPage from "./pages/SearchResultsPage.jsx";
+
+// Modals
 import SignInModal from "./components/SignInModal.jsx";
 import SignUpModal from "./components/SignUpModal.jsx";
 import BlogModal from "./components/BlogModal.jsx";
 import CreateCommunityModal from "./components/CreateCommunityModal.jsx";
+import ViewPostModal from "./components/ViewPostModal.jsx";
 
 export default function App() {
   const [user, setUser] = useState(null);
   const navigate = useNavigate();
+
+  // State for all modals is now managed here at the top level
   const [showSignInModal, setShowSignInModal] = useState(false);
   const [showSignUpModal, setShowSignUpModal] = useState(false);
   const [isBlogModalOpen, setIsBlogModalOpen] = useState(false);
   const [isCreateCommunityModalOpen, setIsCreateCommunityModalOpen] = useState(false);
+  const [postToView, setPostToView] = useState(null);
+
   const [dataVersion, setDataVersion] = useState(0);
   const refreshData = () => setDataVersion(v => v + 1);
 
-  // This function now accepts an optional message
   const performLogout = useCallback((message) => {
     localStorage.removeItem("tripto_user");
     localStorage.removeItem("tripto_token");
     setUser(null);
     if (message) {
-      // Store a message to be displayed on the homepage after redirect
       sessionStorage.setItem('redirectMessage', message);
     }
     navigate("/");
   }, [navigate]);
 
   useEffect(() => {
-    // This handler will be called by the event dispatched from api.js
     const handleAuthExpired = () => {
       performLogout('Your session has expired. Please sign in again.');
     };
-
     window.addEventListener("auth-expired", handleAuthExpired);
 
     const storedUser = localStorage.getItem("tripto_user");
@@ -48,7 +53,6 @@ export default function App() {
       try { setUser(JSON.parse(storedUser)); } catch (e) { performLogout(); }
     }
     
-    // Cleanup the event listener when the component unmounts
     return () => {
       window.removeEventListener("auth-expired", handleAuthExpired);
     };
@@ -69,23 +73,82 @@ export default function App() {
   return (
     <>
       <Routes>
-        <Route path="/" element={<Layout user={user} onSignOut={handleSignOut} onTriggerSignIn={triggerSignIn} onTriggerSignUp={triggerSignUp} />}>
-          <Route index element={<HomePage user={user} onTriggerSignIn={triggerSignIn} onOpenBlogModal={() => setIsBlogModalOpen(true)} dataVersion={dataVersion} />} />
-          <Route path="explore" element={<ExplorePage />} />
+        <Route
+          path="/"
+          element={
+            <Layout
+              user={user}
+              onSignOut={handleSignOut}
+              onTriggerSignIn={triggerSignIn}
+              onTriggerSignUp={triggerSignUp}
+            />
+          }
+        >
+          <Route 
+            index 
+            element={<HomePage 
+                user={user} 
+                onTriggerSignIn={triggerSignIn} 
+                onOpenBlogModal={() => setIsBlogModalOpen(true)}
+                onViewPost={(post) => setPostToView(post)}
+                dataVersion={dataVersion}
+            />} 
+          />
+          <Route 
+            path="explore" 
+            element={<ExplorePage onViewPost={(post) => setPostToView(post)} />} 
+          />
           <Route path="search" element={<SearchResultsPage />} />
           <Route path="book-trip" element={<BookTripPage />} />
-          <Route path="profile/:userId" element={<ProfilePage loggedInUser={user} />} />
-          <Route path="profile" element={user ? <Navigate to={`/profile/${user.user_id}`} replace /> : <Navigate to="/" replace />} />
-          <Route path="communities" element={<CommunityPage user={user} onTriggerSignIn={triggerSignIn} onOpenCreateCommunityModal={() => setIsCreateCommunityModalOpen(true)} dataVersion={dataVersion} />} />
-          <Route path="communities/:communityId" element={<CommunityDetailsPage user={user} onTriggerSignIn={triggerSignIn} />} />
+          <Route 
+            path="profile/:userId" 
+            element={<ProfilePage loggedInUser={user} onViewPost={(post) => setPostToView(post)} />} 
+          />
+          <Route 
+            path="profile" 
+            element={user ? <Navigate to={`/profile/${user.user_id}`} replace /> : <Navigate to="/" replace />} 
+          />
+          <Route 
+            path="communities" 
+            element={<CommunityPage 
+                user={user} 
+                onTriggerSignIn={triggerSignIn} 
+                onOpenCreateCommunityModal={() => setIsCreateCommunityModalOpen(true)}
+                dataVersion={dataVersion}
+            />} 
+          />
+          <Route 
+            path="communities/:communityId" 
+            element={<CommunityDetailsPage user={user} onTriggerSignIn={triggerSignIn} onViewPost={(post) => setPostToView(post)} />}
+          />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Route>
       </Routes>
 
+      {/* ALL MODALS ARE RENDERED HERE, AT THE TOP LEVEL */}
       <SignInModal open={showSignInModal} onClose={() => setShowSignInModal(false)} onSuccess={handleAuthSuccess} />
       <SignUpModal open={showSignUpModal} onClose={() => setShowSignUpModal(false)} onSuccess={handleAuthSuccess} />
-      <BlogModal open={isBlogModalOpen} onClose={() => setIsBlogModalOpen(false)} onPostCreated={refreshData} user={user} onTriggerSignIn={triggerSignIn} />
-      <CreateCommunityModal open={isCreateCommunityModalOpen} onClose={() => setIsCreateCommunityModalOpen(false)} onCommunityCreated={refreshData} user={user} onTriggerSignIn={triggerSignIn} />
+      
+      <BlogModal 
+        open={isBlogModalOpen} 
+        onClose={() => setIsBlogModalOpen(false)} 
+        onPostCreated={refreshData} 
+        user={user} 
+        onTriggerSignIn={triggerSignIn} 
+      />
+      <CreateCommunityModal 
+        open={isCreateCommunityModalOpen} 
+        onClose={() => setIsCreateCommunityModalOpen(false)} 
+        onCommunityCreated={refreshData} 
+        user={user} 
+        onTriggerSignIn={triggerSignIn} 
+      />
+      <ViewPostModal 
+        open={!!postToView} 
+        onClose={() => setPostToView(null)} 
+        post={postToView}
+        loggedInUser={user}
+      />
     </>
   );
 }

@@ -4,6 +4,7 @@ import api from '../services/api';
 import { Search, ChevronDown, Compass, Users, FileText, Star, Rss } from 'lucide-react';
 import { CommunityCardSkeleton } from '../components/CommunityCardSkeleton';
 import { PostCardSkeleton } from '../components/PostCardSkeleton';
+import BlogPostCard from '../components/BlogPostCard'; // The missing import is now added
 
 const searchOptions = [
     { id: 'destinations', label: 'Destinations', icon: Compass },
@@ -11,11 +12,10 @@ const searchOptions = [
     { id: 'communities', label: 'Communities', icon: Users },
 ];
 
-export default function ExplorePage() {
+export default function ExplorePage({ onViewPost }) {
     const [communities, setCommunities] = useState([]);
     const [posts, setPosts] = useState([]);
     const [loading, setLoading] = useState(true);
-
     const [searchCategory, setSearchCategory] = useState(searchOptions[0]);
     const [searchTerm, setSearchTerm] = useState("");
     const [isDropdownOpen, setIsDropdownOpen] = useState(false);
@@ -48,8 +48,6 @@ export default function ExplorePage() {
 
     return (
         <div className="space-y-12 animate-fade-in-up">
-        <div className="space-y-12">
-            {/* Search Bar Section */}
             <section className="p-6 bg-gray-900/50 border border-gray-800 rounded-xl">
                 <h1 className="text-3xl font-bold text-white mb-4">Explore</h1>
                 <div className="flex items-center bg-gray-800/80 border-2 border-gray-700 rounded-lg shadow-lg">
@@ -70,21 +68,13 @@ export default function ExplorePage() {
                             </div>
                         )}
                     </div>
-                    <input 
-                        type="text" 
-                        placeholder={`Search for ${searchCategory.label.toLowerCase()}...`}
-                        className="w-full h-full bg-transparent text-white placeholder-gray-500 focus:outline-none px-4"
-                        value={searchTerm}
-                        onChange={(e) => setSearchTerm(e.target.value)}
-                        onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
-                    />
+                    <input type="text" placeholder={`Search for ${searchCategory.label.toLowerCase()}...`} className="w-full h-full bg-transparent text-white placeholder-gray-500 focus:outline-none px-4" value={searchTerm} onChange={(e) => setSearchTerm(e.target.value)} onKeyDown={(e) => e.key === 'Enter' && handleSearch()} />
                     <button onClick={handleSearch} className="p-3 m-1.5 bg-purple-600 hover:bg-purple-700 rounded-lg transition-colors">
                         <Search size={20} />
                     </button>
                 </div>
             </section>
 
-            {/* Featured Communities Section */}
             <section>
                 <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-3"><Star className="text-cyan-400"/> Featured Communities</h2>
                 {loading ? <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-6"><CommunityCardSkeleton/><CommunityCardSkeleton/><CommunityCardSkeleton/><CommunityCardSkeleton/></div> : (
@@ -99,21 +89,21 @@ export default function ExplorePage() {
                 )}
             </section>
 
-            {/* Trending Blog Posts Section */}
             <section>
                 <h2 className="text-2xl font-bold text-white mb-4 flex items-center gap-3"><Rss className="text-purple-400"/> Trending Posts</h2>
                 {loading ? <div className="grid grid-cols-1 lg:grid-cols-3 gap-6"><PostCardSkeleton/><PostCardSkeleton/><PostCardSkeleton/></div> : (
                     <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
                         {posts.map((post, index) => (
-                            <Link key={post.post_id} to={`/posts/${post.post_id}`} className="bg-gray-900/80 rounded-xl p-5 shadow-lg border-2 border-gray-800 hover:border-purple-600 transition-all duration-300 flex flex-col group hover:shadow-2xl animate-fade-in-up" style={{ animationDelay: `${index * 100}ms` }}>
-                                <h3 className="text-lg font-bold text-white group-hover:text-purple-300 mb-2 truncate transition-colors">{post.title}</h3>
-                                <p className="text-sm text-gray-400 line-clamp-2">By {post.user_profile?.username || 'Unknown'}</p>
-                            </Link>
+                            <BlogPostCard 
+                                key={post.post_id}
+                                post={post}
+                                onCardClick={onViewPost}
+                                animationDelay={index * 100}
+                            />
                         ))}
                     </div>
                 )}
             </section>
-        </div>
         </div>
     );
 }
