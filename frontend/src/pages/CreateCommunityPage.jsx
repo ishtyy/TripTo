@@ -1,8 +1,8 @@
 // frontend/src/pages/CreateCommunityPage.jsx
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import api from "../services/api.js";
-import MapPicker from "../components/MapPicker.jsx";
+import MapPicker from "../components/common/MapPicker.jsx";
 
 export default function CreateCommunityPage({ user }) {
   const [name, setName] = useState("");

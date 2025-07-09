@@ -1,10 +1,11 @@
-// tempo/backend/src/middleware/authMiddleware.js
-const jwt = require('jsonwebtoken');
-const db = require('../config/db'); // Use the new raw SQL module
+// src/middleware/authMiddleware.js
+
+import jwt from 'jsonwebtoken';
+import db from '../config/db.js';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
-async function checkJwtMiddleware(req, res, next) {
+export const checkJwtMiddleware = async (req, res, next) => {
   try {
     const authHeader = req.headers['authorization'];
     if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -13,43 +14,60 @@ async function checkJwtMiddleware(req, res, next) {
 
     const token = authHeader.split(' ')[1];
     if (!token) {
-        return res.status(401).json({ error: 'Missing token in Authorization header' });
+      return res.status(401).json({ error: 'Missing token in Authorization header' });
     }
 
+    // Verify Supabase JWT
     const payload = jwt.verify(token, JWT_SECRET);
 
-    // Verify user exists in the database using raw SQL
-    const { rows } = await db.query(
-      'SELECT user_id FROM user_profile WHERE user_id = $1',
+    // Optionally check if user exists in DB
+    const user = await db.oneOrNone(
+      'SELECT user_id FROM user_profiles WHERE user_id = $1',
       [payload.userId]
     );
-    const user = rows[0];
 
     if (!user) {
-      console.error('Token validation error: user not found in user_profile for userId:', payload.userId);
+      console.error('Token validation error: user not found in user_profiles for userId:', payload.sub);
       return res.status(401).json({ error: 'Invalid token or user not found' });
     }
 
+    // Attach user info to request
     req.userId = user.user_id;
+
     next();
   } catch (err) {
     console.error('checkJwtMiddleware Error:', err.name, err.message);
     if (err.name === 'JsonWebTokenError') {
-        return res.status(401).json({ error: `Unauthorized: Invalid token - ${err.message}` });
+      return res.status(401).json({ error: `Unauthorized: Invalid token - ${err.message}` });
     }
     if (err.name === 'TokenExpiredError') {
-        return res.status(401).json({ error: 'Unauthorized: Token expired' });
+      return res.status(401).json({ error: 'Unauthorized: Token expired' });
     }
     return res.status(401).json({ error: 'Unauthorized (Middleware)' });
   }
-}
+};
 
 
-function requireRole(requiredRole) {
-  return (req, res, next) => {
-    console.warn("DEPRECATION WARNING: requireRole middleware is used but global roles are not supported.");
-    return res.status(500).json({ error: "Server configuration error: Global role check is not supported." });
+export function requireRole(requiredRole) {
+  return async (req, res, next) => {
+    const userId = req.userId;
+    if (!userId) {
+      return res.status(401).json({ error: 'Unauthorized. No userId found.' });
+    }
+
+    const user = await db.oneOrNone(
+      'SELECT role FROM user_profiles WHERE user_id = $1',
+      [userId]
+    );
+
+    if (!user) {
+      return res.status(404).json({ error: 'User not found.' });
+    }
+
+    if (user.role !== requiredRole) {
+      return res.status(403).json({ error: `Forbidden. Requires role: ${requiredRole}` });
+    }
+
+    next();
   };
 }
-
-module.exports = { checkJwtMiddleware, requireRole };

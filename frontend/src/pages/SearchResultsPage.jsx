@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import { useState, useEffect } from 'react';
 import { useSearchParams, Link } from 'react-router-dom';
 import api from '../services/api';
-import { Loader2, Search, Compass, FileText, Users } from 'lucide-react';
+import { Loader2, Search, Compass, Users } from 'lucide-react';
 
 // Updated to include a card for communities
 const ResultCard = ({ result, type }) => {

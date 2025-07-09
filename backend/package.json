@@ -1,28 +1,35 @@
 {
   "name": "backend",
   "version": "1.0.0",
-  "description": "",
   "main": "index.js",
+  "type": "module",
   "scripts": {
-    "start": "nodemon src/app.js"
+    "start": "node src/server.js",
+    "dev": "nodemon src/server.js",
+    "migrate:create": "node-pg-migrate create",
+    "migrate:up": "node-pg-migrate up",
+    "migrate:down": "node-pg-migrate down"
   },
   "keywords": [],
   "author": "",
   "license": "ISC",
-  "type": "commonjs",
+  "description": "",
   "dependencies": {
-    "@supabase/supabase-js": "^2.49.8",
-    "amadeus": "^11.0.0",
+    "@supabase/supabase-js": "^2.50.0",
     "bcryptjs": "^3.0.2",
     "cors": "^2.8.5",
-    "dotenv": "^16.5.0",
+    "dotenv-safe": "^9.1.0",
     "express": "^5.1.0",
+    "express-rate-limit": "^7.5.1",
+    "http-errors": "^2.0.0",
     "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.0",
     "pg": "^8.16.2",
     "pg-promise": "^11.14.0",
     "uuid": "^11.1.0"
   },
   "devDependencies": {
+    "node-pg-migrate": "^8.0.3",
     "nodemon": "^3.1.10"
   }
 }

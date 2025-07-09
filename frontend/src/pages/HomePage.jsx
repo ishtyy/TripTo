@@ -1,10 +1,9 @@
-import React, { useEffect, useState } from "react";
-import api from "../services/api.js";
-import BlogModal from "../components/BlogModal.jsx";
-import ViewPostModal from "../components/ViewPostModal.jsx";
+import { useEffect, useState } from "react";
+import api from "../services/api";
+import ViewPostModal from "../components/blog/ViewPostModal.jsx";
 import { Plus, Rss } from "lucide-react";
-import { PostCardSkeleton } from "../components/PostCardSkeleton.jsx";
-import BlogPostCard from "../components/BlogPostCard.jsx";
+import PostCardSkeleton from "../components/blog/PostCardSkeleton.jsx";
+import BlogPostCard from "../components/blog/BlogPostCard.jsx";
 
 export default function HomePage({ user, onTriggerSignIn, onOpenBlogModal, dataVersion }) {
   const [posts, setPosts] = useState([]);
@@ -20,6 +19,7 @@ export default function HomePage({ user, onTriggerSignIn, onOpenBlogModal, dataV
         const res = await api.get("/posts");
         setPosts(res.data.posts || []);
       } catch (err) {
+        console.error("Error fetching posts:", err);
         setFetchPostsError("Could not load posts. Please try again later.");
       } finally {
         setIsLoadingPosts(false);
@@ -27,8 +27,9 @@ export default function HomePage({ user, onTriggerSignIn, onOpenBlogModal, dataV
     }
     fetchPosts();
   }, [dataVersion]);
-  
+
   const handleViewPost = (post) => {
+    if (!post || !post.post_id) return;
     setSelectedPostForView(post);
   };
 
@@ -37,8 +38,10 @@ export default function HomePage({ user, onTriggerSignIn, onOpenBlogModal, dataV
       <section>
         <div className="flex justify-between items-center mb-6">
           <h1 className="text-3xl font-bold text-white flex items-center gap-3">
-            <Rss className="text-purple-400"/>Recent Blog Posts
+            <Rss className="text-purple-400" />
+            Recent Blog Posts
           </h1>
+
           {user && (
             <button
               onClick={onOpenBlogModal}
@@ -49,28 +52,38 @@ export default function HomePage({ user, onTriggerSignIn, onOpenBlogModal, dataV
             </button>
           )}
         </div>
-        
+
         {isLoadingPosts ? (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {[...Array(6)].map((_, i) => <PostCardSkeleton key={i} />)}
+            {[...Array(6)].map((_, i) => (
+              <PostCardSkeleton key={i} />
+            ))}
           </div>
         ) : fetchPostsError ? (
-          <div className="text-center py-10 text-red-400 bg-red-900/30 p-4 rounded-md">{fetchPostsError}</div>
+          <div className="text-center py-10 text-red-400 bg-red-900/30 p-4 rounded-md">
+            {fetchPostsError}
+          </div>
         ) : posts.length === 0 ? (
           <div className="text-center py-16 bg-gray-900/50 rounded-xl">
             <p className="text-gray-400 text-lg">No posts yet. Be the first to share!</p>
             {!user && (
               <p className="text-gray-500 mt-2">
-                <button onClick={onTriggerSignIn} className="text-purple-400 hover:text-purple-300 font-semibold underline">Sign in</button> to create a post.
+                <button
+                  onClick={onTriggerSignIn}
+                  className="text-purple-400 hover:text-purple-300 font-semibold underline"
+                >
+                  Sign in
+                </button>{" "}
+                to create a post.
               </p>
             )}
           </div>
         ) : (
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {posts.map((post, index) => (
-              <BlogPostCard 
-                key={post.post_id} 
-                post={post} 
+              <BlogPostCard
+                key={post.post_id || index}
+                post={post}
                 onCardClick={handleViewPost}
                 animationDelay={index * 100}
               />
@@ -79,9 +92,9 @@ export default function HomePage({ user, onTriggerSignIn, onOpenBlogModal, dataV
         )}
       </section>
 
-      <ViewPostModal 
-        open={!!selectedPostForView} 
-        onClose={() => setSelectedPostForView(null)} 
+      <ViewPostModal
+        open={!!selectedPostForView}
+        onClose={() => setSelectedPostForView(null)}
         post={selectedPostForView}
         loggedInUser={user}
       />

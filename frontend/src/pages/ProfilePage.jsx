@@ -1,8 +1,8 @@
-import React, { useEffect, useState } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useEffect, useState } from 'react';
+import { useParams } from 'react-router-dom';
 import api from '../services/api';
-import { User, Edit, Users, FileText, ShieldCheck, Loader2 } from 'lucide-react';
-import ViewPostModal from '../components/ViewPostModal.jsx'; // Import the modal
+import { Edit, Users, ShieldCheck, Loader2 } from 'lucide-react';
+import ViewPostModal from "../components/blog/ViewPostModal.jsx";
 
 // Card for displaying a post on the profile page
 const ProfilePostCard = ({ post, onViewPost }) => (

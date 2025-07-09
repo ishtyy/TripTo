@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import { useState } from "react";
 import { Bed, Plane, Package } from "lucide-react";
 import FlightSearch from "../components/booking/FlightSearch";
 import HotelSearch from "../components/booking/HotelSearch";

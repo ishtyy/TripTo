@@ -1,4 +1,4 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import api from '../services/api';
 import {
@@ -6,9 +6,9 @@ import {
     Users, LogIn, UserPlus, UserMinus,
     MessageCircle, Star, Pin as PinIcon, User as UserIcon, Info, Loader2, Settings
 } from 'lucide-react';
-import CreateCommunityPostModal from '../components/CreateCommunityPostModal.jsx';
-import ViewCommunityPostModal from '../components/ViewCommunityPostModal.jsx';
-import FloatingActionButtons from '../components/FloatingActionButtons.jsx';
+import CommunityPostCreateModal from '../components/community/CommunityPostCreateModal.jsx';
+import CommunityViewPostModal from '../components/community/CommunityPostViewModal.jsx';
+import FloatingActionButtons from '../components/common/FloatingActionButtons.jsx';
 
 
 const CommunityPostCard = ({ post, onPostClick, isFeatured, isPinned }) => (
@@ -221,8 +221,8 @@ export default function CommunityDetailsPage({ user, onTriggerSignIn }) {
         </aside>
       </div>
 
-      {isCreatePostModalOpen && <CreateCommunityPostModal open={isCreatePostModalOpen} onClose={() => setIsCreatePostModalOpen(false)} user={user} communityId={community.community_id} onPostCreated={handleCommunityPostCreated} onTriggerSignIn={onTriggerSignIn} />}
-      <ViewCommunityPostModal open={!!selectedPostToView} onClose={() => setSelectedPostToView(null)} post={selectedPostToView} />
+      {isCreatePostModalOpen && <CommunityPostCreateModal open={isCreatePostModalOpen} onClose={() => setIsCreatePostModalOpen(false)} user={user} communityId={community.community_id} onPostCreated={handleCommunityPostCreated} onTriggerSignIn={onTriggerSignIn} />}
+      <CommunityViewPostModal open={!!selectedPostToView} onClose={() => setSelectedPostToView(null)} post={selectedPostToView} />
       <FloatingActionButtons canContribute={canPostInCommunity} onCreatePostClick={() => setIsCreatePostModalOpen(true)} />
     </div>
     </div>

@@ -2,7 +2,7 @@ import React, { useEffect, useState, useCallback } from "react";
 import { Routes, Route, Navigate, useLocation, useNavigate } from "react-router-dom";
 
 // Layout & Core Pages
-import Layout from "./components/Layout.jsx";
+import Layout from "./components/layout/Layout";
 import HomePage from "./pages/HomePage.jsx";
 import ExplorePage from "./pages/ExplorePage.jsx";
 import BookTripPage from "./pages/BookTripPage.jsx";
@@ -12,11 +12,11 @@ import CommunityDetailsPage from "./pages/CommunityDetailsPage.jsx";
 import SearchResultsPage from "./pages/SearchResultsPage.jsx";
 
 // Modals
-import SignInModal from "./components/SignInModal.jsx";
-import SignUpModal from "./components/SignUpModal.jsx";
-import BlogModal from "./components/BlogModal.jsx";
-import CreateCommunityModal from "./components/CreateCommunityModal.jsx";
-import ViewPostModal from "./components/ViewPostModal.jsx";
+import SignInModal from "./components/auth/SignInModal.jsx";
+import SignUpModal from "./components/auth/SignUpModal.jsx";
+import BlogModal from "./components/blog/BlogModal.jsx";
+import CommunityCreateModal from "./components/community/CommunityCreateModal.jsx";
+import ViewPostModal from "./components/blog/ViewPostModal.jsx";
 
 export default function App() {
   const [user, setUser] = useState(null);
@@ -136,7 +136,7 @@ export default function App() {
         user={user} 
         onTriggerSignIn={triggerSignIn} 
       />
-      <CreateCommunityModal 
+      <CommunityCreateModal 
         open={isCreateCommunityModalOpen} 
         onClose={() => setIsCreateCommunityModalOpen(false)} 
         onCommunityCreated={refreshData} 
