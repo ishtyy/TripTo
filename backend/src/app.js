@@ -19,6 +19,7 @@ import communityPostRoutes from './routes/communityPostRoutes.js';
 import communityRoutes from './routes/communityRoutes.js';
 import locationRoutes from './routes/locationRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
+import flightRoutes from './routes/flightRoutes.js';
 
 const app = express();
 
@@ -40,6 +41,8 @@ app.use('/api/community-posts', communityPostRoutes);
 app.use('/api/communities', communityRoutes);
 app.use('/api/locations', locationRoutes);
 app.use('/api/admin', adminRoutes);
+app.use('/api/flights', flightRoutes);
+console.log('✅ Flight routes registered successfully on /api/flights'); // <-- ADD THIS LINE
 
 
 // 2) Your application routes

@@ -1,13 +1,17 @@
-// tempo/backend/src/services/amadeus.js
-const Amadeus = require('amadeus');
+import Amadeus from 'amadeus';
+import dotenv from 'dotenv';
 
-// Ensure your .env file has AMADEUS_API_KEY and AMADEUS_API_SECRET
+dotenv.config();
+
+// Check if the required environment variables are set
+if (!process.env.AMADEUS_CLIENT_ID || !process.env.AMADEUS_CLIENT_SECRET) {
+  throw new Error('Amadeus API credentials are not defined in your .env file');
+}
+
+// Create and export the Amadeus client instance
 const amadeus = new Amadeus({
-  clientId: process.env.AMADEUS_API_KEY,
-  clientSecret: process.env.AMADEUS_API_SECRET
+  clientId: process.env.AMADEUS_CLIENT_ID,
+  clientSecret: process.env.AMADEUS_CLIENT_SECRET,
 });
 
-// Log to confirm the service is initializing
-console.log("✈️ Amadeus service initialized.");
-
-module.exports = amadeus;
+export default amadeus;
