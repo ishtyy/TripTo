@@ -1,64 +1,96 @@
 import React, { useState } from 'react';
-import { X, Loader2 } from 'lucide-react';
-import api from '../services/api';
+import { useForm } from 'react-hook-form';
+import api from '../../services/api';
+import toast from 'react-hot-toast';
+import { X, GitBranch } from 'lucide-react';
 
-export default function CascadeModal({ open, onClose, originalPost, onCascadeCreated }) {
-  const [title, setTitle] = useState(`Cascade: ${originalPost?.title || ''}`);
-  const [content, setContent] = useState('');
-  const [loading, setLoading] = useState(false);
-  const [errorMsg, setErrorMsg] = useState('');
-
-  if (!open) return null;
-
-  const handleCascadeSubmit = async () => {
-    if (!content.trim() || !title.trim()) {
-      setErrorMsg("Your title and thoughts are required.");
-      return;
-    }
-    setLoading(true);
-    setErrorMsg('');
-    try {
-      const payload = { title, content };
-      await api.post(`/posts/${originalPost.post_id}/cascade`, payload);
-      onCascadeCreated();
-    } catch (err) {
-      setErrorMsg("Failed to create Cascade. Please try again.");
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 z-[70] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-gray-900/80 border border-gray-700/80 rounded-xl shadow-2xl p-6 max-w-2xl w-full relative flex flex-col">
-        <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-white"><X size={20} /></button>
-        <h2 className="text-2xl font-bold text-purple-400 mb-4">Cascade Post</h2>
-        
-        <div className="mb-4 p-3 border border-gray-700 rounded-lg bg-gray-800/50">
-            <p className="text-sm font-semibold text-gray-300 truncate">{originalPost.title}</p>
-            <p className="text-xs text-gray-400 line-clamp-2">{originalPost.content}</p>
-        </div>
-
-        <div className="space-y-4">
-            <div>
-                <label htmlFor="cascadeTitle" className="block text-sm font-medium text-gray-300 mb-1.5">Your Title</label>
-                <input id="cascadeTitle" type="text" value={title} onChange={(e) => setTitle(e.target.value)} className="w-full px-4 py-2 rounded-lg bg-gray-800 text-white border-2 border-gray-700 focus:outline-none focus:border-purple-500"/>
-            </div>
-            <div>
-                <label htmlFor="cascadeContent" className="block text-sm font-medium text-gray-300 mb-1.5">Your Thoughts</label>
-                <textarea id="cascadeContent" value={content} onChange={(e) => setContent(e.target.value)} className="w-full px-4 py-2 rounded-lg bg-gray-800 text-white border-2 border-gray-700 focus:outline-none focus:border-purple-500 resize-none" rows={5} placeholder="Add your perspective..."/>
-            </div>
-        </div>
-        
-        {errorMsg && <p className="text-red-400 text-sm mt-3 text-center">{errorMsg}</p>}
-
-        <div className="mt-6 pt-4 border-t border-gray-700 flex justify-end">
-          <button onClick={handleCascadeSubmit} disabled={loading} className="px-6 py-2.5 rounded-lg font-semibold bg-purple-600 hover:bg-purple-700 text-white disabled:opacity-50 flex items-center gap-2">
-            {loading ? <Loader2 className="animate-spin" size={18}/> : null}
-            Cascade
-          </button>
-        </div>
-      </div>
+// A sub-component to show the original post being cascaded
+const OriginalPostQuote = ({ post }) => (
+    <div className="p-3 border-l-4 border-gray-700 bg-gray-800/50 rounded-r-lg">
+        <p className="text-sm font-semibold text-gray-300 truncate">{post.title}</p>
+        <p className="text-xs text-gray-400 line-clamp-2 mt-1">{post.content}</p>
     </div>
-  );
+);
+
+export default function CascadeModal({ open, onClose, parentPost, user, onTriggerSignIn, onPostCreated }) {
+    const { register, handleSubmit, reset, formState: { errors, isSubmitting } } = useForm();
+
+    // ✅ FIX: This guard clause prevents the component from rendering if the necessary props are missing.
+    // This is the definitive fix for the "Cannot read properties of undefined" crash.
+    if (!open || !parentPost) {
+        return null;
+    }
+
+    const onSubmit = async (data) => {
+        if (!user) {
+            onTriggerSignIn();
+            return;
+        }
+        try {
+            await api.post(`/posts/${parentPost.post_id}/cascade`, {
+                title: data.title,
+                content: data.content,
+            });
+            toast.success('Successfully cascaded post!');
+            onPostCreated(); // This will refresh the main feed
+            reset();
+            onClose();
+        } catch (error) {
+            toast.error(error.response?.data?.error || 'Failed to cascade post.');
+        }
+    };
+
+    return (
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 animate-fade-in">
+            <div className="bg-gray-900 rounded-xl shadow-2xl w-full max-w-2xl max-h-[90vh] flex flex-col">
+                <div className="flex justify-between items-center p-5 border-b border-gray-800">
+                    <div className="flex items-center gap-3">
+                        <GitBranch className="text-purple-400" />
+                        <h2 className="text-xl font-bold text-white">Create a Cascade</h2>
+                    </div>
+                    <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors">
+                        <X size={24} />
+                    </button>
+                </div>
+                
+                <div className="p-6 overflow-y-auto">
+                    <p className="text-sm text-gray-400 mb-4">You are cascading the following post:</p>
+                    <OriginalPostQuote post={parentPost} />
+
+                    <form onSubmit={handleSubmit(onSubmit)} className="space-y-4 mt-6">
+                        <div>
+                            <label htmlFor="cascade-title" className="block text-sm font-medium text-gray-300">Your Title</label>
+                            <input
+                                id="cascade-title"
+                                {...register('title', { required: 'A title is required.' })}
+                                className="mt-1 block w-full px-4 py-3 rounded-lg bg-gray-800 text-white border-2 border-gray-700 focus:outline-none focus:border-cyan-500"
+                                placeholder="e.g., My thoughts on this..."
+                            />
+                            {errors.title && <p className="text-red-400 text-xs mt-1">{errors.title.message}</p>}
+                        </div>
+                        <div>
+                            <label htmlFor="cascade-content" className="block text-sm font-medium text-gray-300">Your Content</label>
+                            <textarea
+                                id="cascade-content"
+                                {...register('content', { required: 'Content is required.' })}
+                                rows="6"
+                                className="mt-1 block w-full px-4 py-3 rounded-lg bg-gray-800 text-white border-2 border-gray-700 focus:outline-none focus:border-cyan-500"
+                                placeholder="Share your perspective..."
+                            />
+                            {errors.content && <p className="text-red-400 text-xs mt-1">{errors.content.message}</p>}
+                        </div>
+                        <div className="flex justify-end">
+                            <button 
+                                type="submit" 
+                                disabled={isSubmitting}
+                                className="px-8 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold transition-colors disabled:opacity-50"
+                            >
+                                {isSubmitting ? 'Posting...' : 'Post Cascade'}
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </div>
+        </div>
+    );
 }

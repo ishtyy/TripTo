@@ -1,10 +1,12 @@
-// src/middleware/authMiddleware.js
-
 import jwt from 'jsonwebtoken';
 import db from '../config/db.js';
 
 const JWT_SECRET = process.env.JWT_SECRET;
 
+/**
+ * Verifies the Bearer token, looks up the user in the database,
+ * and attaches `req.user = { user_id }`. Returns 401 JSON on failure.
+ */
 export const checkJwtMiddleware = async (req, res, next) => {
   try {
     const authHeader = req.headers['authorization'];
@@ -13,27 +15,22 @@ export const checkJwtMiddleware = async (req, res, next) => {
     }
 
     const token = authHeader.split(' ')[1];
-    if (!token) {
-      return res.status(401).json({ error: 'Missing token in Authorization header' });
-    }
-
-    // Verify Supabase JWT
     const payload = jwt.verify(token, JWT_SECRET);
 
-    // Optionally check if user exists in DB
+    // Ensure that user exists
     const user = await db.oneOrNone(
-      'SELECT user_id FROM user_profiles WHERE user_id = $1',
+      'SELECT user_id, role FROM user_profiles WHERE user_id = $1',
       [payload.userId]
     );
-
     if (!user) {
-      console.error('Token validation error: user not found in user_profiles for userId:', payload.sub);
       return res.status(401).json({ error: 'Invalid token or user not found' });
     }
 
-    // Attach user info to request
-    req.userId = user.user_id;
-
+    // Attach full user object (including role)
+    req.user = {
+      user_id: user.user_id,
+      role: user.role
+    };
     next();
   } catch (err) {
     console.error('checkJwtMiddleware Error:', err.name, err.message);
@@ -43,28 +40,22 @@ export const checkJwtMiddleware = async (req, res, next) => {
     if (err.name === 'TokenExpiredError') {
       return res.status(401).json({ error: 'Unauthorized: Token expired' });
     }
-    return res.status(401).json({ error: 'Unauthorized (Middleware)' });
+    return res.status(401).json({ error: 'Unauthorized (Middleware failure)' });
   }
 };
 
-
+/**
+ * Factory to enforce a specific user role.
+ * Usage: router.get('/admin', checkJwtMiddleware, requireRole('admin'), handler)
+ */
 export function requireRole(requiredRole) {
   return async (req, res, next) => {
-    const userId = req.userId;
-    if (!userId) {
-      return res.status(401).json({ error: 'Unauthorized. No userId found.' });
+    if (!req.user?.user_id) {
+      return res.status(401).json({ error: 'Unauthorized. No user info found.' });
     }
 
-    const user = await db.oneOrNone(
-      'SELECT role FROM user_profiles WHERE user_id = $1',
-      [userId]
-    );
-
-    if (!user) {
-      return res.status(404).json({ error: 'User not found.' });
-    }
-
-    if (user.role !== requiredRole) {
+    // req.user.role was attached in checkJwtMiddleware
+    if (req.user.role !== requiredRole) {
       return res.status(403).json({ error: `Forbidden. Requires role: ${requiredRole}` });
     }
 

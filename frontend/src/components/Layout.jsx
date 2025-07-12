@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { Outlet, Link, useLocation, useNavigate } from "react-router-dom";
 import { Bell, Globe, MapPin, BookOpen, Home, Inbox, LogOut, Search } from "lucide-react";
 import api from "../services/api";
-import TextLogo from "./TextLogo";
+import TextLogo from '../ui/TextLogo'; 
 
 export default function Layout({ user, onSignOut, onTriggerSignIn, onTriggerSignUp }) {
   const location = useLocation();

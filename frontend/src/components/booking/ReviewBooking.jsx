@@ -1,42 +1,43 @@
 import React from 'react';
 import { useBooking } from '../../context/BookingContext';
-import { Plane, ArrowRight } from 'lucide-react';
+import { Plane, ArrowRight, User, Mail, Calendar, Hash, Clock } from 'lucide-react';
+
+const formatDuration = (minutes) => {
+    const h = Math.floor(minutes / 60);
+    const m = minutes % 60;
+    return `${h}h ${m}m`;
+};
 
 export default function ReviewBooking() {
-  const { selectedFlight, passengers, proceedTo } = useBooking();
-  const passenger = passengers[0];
+  const { cart, passengers, selectedSeats, proceedTo } = useBooking();
 
-  if (!selectedFlight || !passenger) {
-    return <p className="text-red-400">Error: Missing flight or passenger details.</p>;
+  if (cart.length === 0 || Object.keys(passengers).length < cart.length) {
+    return <p className="text-red-400">Error: Missing details for one or more flights. Please restart the booking process.</p>;
   }
 
   return (
     <div className="animate-fade-in-up">
-      <h2 className="text-2xl font-bold text-white mb-6">Review Your Booking</h2>
+      <h2 className="text-2xl font-bold text-white mb-6">Review Your Complete Booking</h2>
       <div className="space-y-6">
-        {/* Flight Details */}
+        
         <div className="bg-gray-800/50 p-5 rounded-xl border border-gray-700">
-          <h3 className="font-semibold text-lg text-cyan-400 mb-4">Flight Details</h3>
-          <div className='flex items-center gap-4 mb-4'>
-             <div className="p-3 bg-gray-700 rounded-lg"><Plane className="text-cyan-400" /></div>
-             <div>
-                <p className="font-bold text-lg text-white">{selectedFlight.airline.name} ({selectedFlight.number})</p>
-                <div className="flex items-center gap-2 text-sm text-gray-400">
-                    <span>{selectedFlight.departure.airport.iata}</span><ArrowRight size={16}/><span>{selectedFlight.arrival.airport.iata}</span>
+          <h3 className="font-semibold text-lg text-cyan-400 mb-4">Your Itinerary</h3>
+          <div className="space-y-6">
+            {cart.map((flight) => (
+              <div key={flight.id} className="pb-4 border-b border-gray-700 last:border-b-0">
+                <div className="flex justify-between items-center mb-3">
+                    <p className="font-bold text-white">{flight.airline.name} ({flight.number})</p>
+                    <p className="text-sm font-semibold text-gray-300 flex items-center gap-2"><Clock size={14}/> {formatDuration(flight.totalDurationMinutes)}</p>
                 </div>
-             </div>
+                
+                <p className="text-sm text-gray-300">Passenger: <span className="font-semibold text-white">{passengers[flight.id]?.firstName} {passengers[flight.id]?.lastName}</span></p>
+                <p className="text-sm text-gray-300">Seat: <span className="font-bold text-white">{selectedSeats[flight.id] || 'Not Selected'}</span></p>
+              </div>
+            ))}
           </div>
-          <p className="text-sm text-gray-400">Date: {new Date(selectedFlight.departure.scheduledTime.local).toLocaleDateString()}</p>
         </div>
 
-        {/* Passenger Details */}
-        <div className="bg-gray-800/50 p-5 rounded-xl border border-gray-700">
-            <h3 className="font-semibold text-lg text-cyan-400 mb-4">Passenger</h3>
-            <p className="text-white">{passenger.firstName} {passenger.lastName}</p>
-            <p className="text-gray-400">{passenger.email}</p>
-        </div>
-
-        <button onClick={() => proceedTo('payment')} className="w-full md:w-auto px-8 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold">
+        <button onClick={() => proceedTo('payment')} className="w-full md:w-auto px-8 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold transition-colors">
             Confirm & Proceed to Payment
         </button>
       </div>

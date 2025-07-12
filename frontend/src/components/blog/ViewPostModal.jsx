@@ -1,81 +1,155 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
-import { X, User, MapPin, Calendar, ArrowUp, ArrowDown, Repeat } from 'lucide-react';
+import { X, Send, ArrowUp, ArrowDown, MessageSquare, GitBranch } from 'lucide-react';
 import api from '../../services/api';
-import CascadeModal from './CascadeModal';
+import { Link } from 'react-router-dom';
+import toast from 'react-hot-toast';
 
-const QuotedPost = ({ post }) => (
-    <div className="mt-4 mb-6 p-3 border-l-4 border-purple-800 bg-gray-800/50 rounded-r-lg">
-        <div className="text-sm text-gray-400 mb-1">
-            Cascading from <Link to={`/profile/${post.author?.user_id}`} className="font-semibold text-purple-300 hover:underline">{post.author?.username || 'Unknown'}</Link>
+// A dedicated component to display a single comment
+const Comment = ({ comment }) => (
+    <div className="flex items-start gap-3">
+        <img 
+            src={comment.user.profile_picture_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(comment.user.username)}&background=random`} 
+            alt={comment.user.username} 
+            className="w-9 h-9 rounded-full bg-gray-700"
+        />
+        <div className="flex-1 bg-gray-800 rounded-lg p-3">
+            <div className="flex items-baseline gap-2">
+                <p className="font-semibold text-white">{comment.user.username}</p>
+                <p className="text-xs text-gray-500">{new Date(comment.created_at).toLocaleDateString()}</p>
+            </div>
+            <p className="text-sm text-gray-300 whitespace-pre-wrap">{comment.content}</p>
         </div>
-        <p className="text-gray-200 font-semibold truncate">{post.title}</p>
     </div>
 );
 
-export default function ViewPostModal({ open, onClose, post, loggedInUser }) {
-    const [votes, setVotes] = useState({ up: 0, down: 0 });
-    const [isCascadeModalOpen, setIsCascadeModalOpen] = useState(false);
+export default function ViewPostModal({ open, onClose, post, loggedInUser, onTriggerSignIn, onCascade }) {
+    // ✅ FIX: The modal now has its own state for votes, initialized safely.
+    const [localUpvotes, setLocalUpvotes] = useState(0);
+    const [localDownvotes, setLocalDownvotes] = useState(0);
+    const [userVote, setUserVote] = useState(null);
 
+    const [comments, setComments] = useState([]);
+    const [newComment, setNewComment] = useState('');
+    const [loadingComments, setLoadingComments] = useState(false);
+
+    // This effect runs whenever a new post is opened in the modal.
     useEffect(() => {
-        if (post) {
-            setVotes({ up: post.upvote_count || 0, down: post.downvote_count || 0 });
+        if (open && post?.post_id) {
+            // Reset state for the new post to prevent showing old data
+            setLocalUpvotes(post.upvote_count ?? 0);
+            setLocalDownvotes(post.downvote_count ?? 0);
+            setUserVote(post.user_vote);
+            
+            // Fetch comments for the newly opened post
+            setLoadingComments(true);
+            api.get(`/posts/${post.post_id}/comments`)
+                .then(res => setComments(res.data || []))
+                .catch(err => console.error("Failed to fetch comments", err))
+                .finally(() => setLoadingComments(false));
         }
-    }, [post]);
-
-    if (!open || !post) return null;
+    }, [open, post]);
 
     const handleVote = async (voteType) => {
         if (!loggedInUser) {
-            alert("You must be signed in to vote.");
+            onTriggerSignIn();
             return;
         }
+
+        const oldVote = userVote;
+        const newVote = oldVote === voteType ? null : voteType;
+
+        let newUpvotes = Number(localUpvotes) || 0;
+        let newDownvotes = Number(localDownvotes) || 0;
+        if (oldVote === 1) newUpvotes--;
+        if (oldVote === -1) newDownvotes--;
+        if (newVote === 1) newUpvotes++;
+        if (newVote === -1) newDownvotes++;
+
+        setLocalUpvotes(newUpvotes);
+        setLocalDownvotes(newDownvotes);
+        setUserVote(newVote);
+        
         try {
-            const res = await api.post(`/posts/${post.post_id}/vote`, { vote_type: voteType });
-            setVotes({ up: res.data.upvote_count, down: res.data.downvote_count });
+            await api.post(`/posts/${post.post_id}/vote`, { vote_type: newVote });
         } catch (error) {
-            alert("An error occurred while voting. You may need to sign in again.");
+            toast.error("Vote could not be cast.");
+            // Revert UI on error
+            setLocalUpvotes(post.upvote_count ?? 0);
+            setLocalDownvotes(post.downvote_count ?? 0);
+            setUserVote(oldVote);
         }
-    };
-    
-    const openCascadeModal = () => {
-        if (!loggedInUser) {
-            alert("You must be signed in to cascade a post.");
-            return;
-        }
-        setIsCascadeModalOpen(true);
     };
 
+    const handlePostComment = async (e) => {
+        e.preventDefault();
+        if (!newComment.trim()) return;
+        try {
+            const { data: createdComment } = await api.post(`/posts/${post.post_id}/comments`, { content: newComment });
+            setComments(prevComments => [...prevComments, createdComment]);
+            setNewComment('');
+        } catch (error) {
+            toast.error("Failed to post comment.");
+        }
+    };
+
+    if (!open || !post) return null;
+
     return (
-        <>
-            <div className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 backdrop-blur-sm p-4 animate-fade-in">
-                <div className="bg-gray-900/80 border border-gray-700/80 rounded-xl shadow-2xl p-6 md:p-8 max-w-3xl w-full relative flex flex-col max-h-[90vh]">
-                    <button onClick={onClose} className="absolute top-4 right-4 text-gray-500 hover:text-white"><X size={20} /></button>
-                    <h2 className="text-3xl md:text-4xl font-bold text-purple-300 break-words mb-4">{post.title}</h2>
-                    <div className="flex flex-wrap items-center gap-x-6 gap-y-2 mb-4 text-sm text-gray-400 border-b border-t border-gray-800 py-3">
-                        <div className="flex items-center gap-2">
-                            <User size={14} /><Link to={`/profile/${post.author_id}`} className="font-medium text-cyan-400 hover:underline">{post.user_profile?.username || "Unknown"}</Link>
+        <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 animate-fade-in">
+            <div className="bg-gray-900 rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+                <div className="flex justify-between items-center p-4 border-b border-gray-800">
+                    <div className="flex items-center gap-3 text-sm">
+                        <Link to={`/profile/${post.author_id}`} onClick={onClose}>
+                            <img src={post.user_profile?.profile_picture_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.user_profile?.username)}&background=random`} alt={post.user_profile?.username} className="w-10 h-10 rounded-full bg-gray-700"/>
+                        </Link>
+                        <div>
+                            <Link to={`/profile/${post.author_id}`} onClick={onClose} className="font-semibold text-white hover:underline">{post.user_profile?.username || "Unknown User"}</Link>
+                            <p className="text-xs text-gray-400">{post.location?.location_name || "Unknown Location"}</p>
                         </div>
-                        {post.location && ( <div className="flex items-center gap-2"><MapPin size={14} /><span>{post.location.location_name}, {post.location.country}</span></div> )}
-                        <div className="flex items-center gap-2"><Calendar size={14} /><span>{new Date(post.created_at).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' })}</span></div>
                     </div>
-                    <div className="overflow-y-auto pr-2 text-gray-200 flex-grow custom-scrollbar">
-                        {post.parent_post && <QuotedPost post={post.parent_post} />}
-                        <article className="prose prose-lg prose-invert max-w-none leading-relaxed whitespace-pre-wrap">{post.content}</article>
-                    </div>
-                    <div className="mt-6 pt-4 border-t border-gray-700 flex items-center justify-between">
+                    <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors"><X size={24} /></button>
+                </div>
+
+                <div className="p-5 overflow-y-auto">
+                    <h2 className="text-2xl font-bold text-white mb-3">{post.title}</h2>
+                    <p className="text-gray-300 whitespace-pre-wrap">{post.content}</p>
+
+                    <div className="mt-6 pt-4 border-t border-gray-800/50 flex items-center gap-6 text-sm">
                         <div className="flex items-center gap-2">
-                            <button onClick={() => handleVote(1)} disabled={!loggedInUser} className="p-2 rounded-full bg-gray-800 hover:bg-green-500/20 text-gray-400 hover:text-green-400 transition-colors disabled:hover:bg-gray-800 disabled:text-gray-600 disabled:cursor-not-allowed" title={!loggedInUser ? "Sign in to vote" : "Upvote"}><ArrowUp size={20} /></button>
-                            <span className="font-bold text-white w-8 text-center">{votes.up - votes.down}</span>
-                            <button onClick={() => handleVote(-1)} disabled={!loggedInUser} className="p-2 rounded-full bg-gray-800 hover:bg-red-500/20 text-gray-400 hover:text-red-400 transition-colors disabled:hover:bg-gray-800 disabled:text-gray-600 disabled:cursor-not-allowed" title={!loggedInUser ? "Sign in to vote" : "Downvote"}><ArrowDown size={20} /></button>
-                            <button onClick={openCascadeModal} disabled={!loggedInUser} className="flex items-center gap-2 ml-4 px-4 py-2 rounded-lg bg-purple-600/80 hover:bg-purple-600 text-white font-semibold text-sm disabled:opacity-50 disabled:cursor-not-allowed" title={!loggedInUser ? "Sign in to Cascade" : "Cascade"}><Repeat size={16}/>Cascade</button>
+                            <button onClick={() => handleVote(1)} className={`flex items-center gap-1.5 p-1.5 rounded-md transition-colors ${userVote === 1 ? 'text-purple-400 bg-purple-900/50' : 'text-gray-400 hover:bg-gray-700'}`}>
+                                <ArrowUp size={16} /> <span className="font-semibold">{localUpvotes}</span>
+                            </button>
+                            <button onClick={() => handleVote(-1)} className={`flex items-center gap-1.5 p-1.5 rounded-md transition-colors ${userVote === -1 ? 'text-cyan-400 bg-cyan-900/50' : 'text-gray-400 hover:bg-gray-700'}`}>
+                                <ArrowDown size={16} /> <span className="font-semibold">{localDownvotes}</span>
+                            </button>
                         </div>
-                        <button type="button" onClick={onClose} className="px-6 py-2 rounded-lg bg-cyan-600 hover:bg-cyan-700 text-white font-semibold">Close</button>
+                        <div className="flex items-center gap-2 text-gray-400">
+                            <MessageSquare size={16} />
+                            <span>{comments.length} Comments</span>
+                        </div>
+                        <button onClick={() => { onClose(); onCascade(post); }} className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors">
+                            <GitBranch size={16} />
+                            <span>{post.cascade_count || 0} Cascades</span>
+                        </button>
+                    </div>
+
+                    <div className="mt-8">
+                        <h3 className="text-lg font-bold text-white mb-4">Comments</h3>
+                        <div className="space-y-4 max-h-60 overflow-y-auto pr-2">
+                            {loadingComments ? <p className="text-gray-400">Loading comments...</p> : 
+                             comments.length > 0 ? comments.map(comment => <Comment key={comment.comment_id} comment={comment} />) : 
+                             <p className="text-gray-500 text-sm">No comments yet. Be the first!</p>}
+                        </div>
+
+                        {loggedInUser && (
+                             <form onSubmit={handlePostComment} className="mt-6 flex gap-3">
+                                <input type="text" value={newComment} onChange={(e) => setNewComment(e.target.value)} placeholder="Add a comment..." className="flex-1 px-4 py-2 rounded-lg bg-gray-800 text-white border-2 border-gray-700 focus:outline-none focus:border-cyan-500" />
+                                <button type="submit" className="p-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold"><Send size={20}/></button>
+                            </form>
+                        )}
                     </div>
                 </div>
             </div>
-            
-            {loggedInUser && <CascadeModal open={isCascadeModalOpen} onClose={() => setIsCascadeModalOpen(false)} originalPost={post} onCascadeCreated={onClose} />}
-        </>
+        </div>
     );
 }
