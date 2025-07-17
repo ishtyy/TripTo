@@ -1,0 +1,443 @@
+create table public.accommodation (
+  accommodation_id uuid not null,
+  external_hotel_id text null,
+  hotel_name text not null,
+  location_id uuid null,
+  room_type text null,
+  check_in timestamp without time zone null,
+  check_out timestamp without time zone null,
+  constraint accommodation_pkey primary key (accommodation_id),
+  constraint accommodation_accommodation_id_fkey foreign KEY (accommodation_id) references bookable_item (bookable_item_id) on delete CASCADE,
+  constraint accommodation_location_id_fkey foreign KEY (location_id) references locations (location_id)
+) TABLESPACE pg_default;
+
+create table public.activity (
+  activity_id uuid not null default gen_random_uuid (),
+  activity_name text not null,
+  location_id uuid not null,
+  activity_type public.activity_type not null,
+  duration_minutes integer null,
+  start_time time without time zone null,
+  end_time time without time zone null,
+  constraint activity_pkey primary key (activity_id),
+  constraint activity_activity_id_fkey foreign KEY (activity_id) references bookable_item (bookable_item_id) on delete CASCADE,
+  constraint activity_location_id_fkey foreign KEY (location_id) references locations (location_id),
+  constraint activity_duration_minutes_check check ((duration_minutes > 0))
+) TABLESPACE pg_default;
+
+
+create table public.admin_logs (
+  log_id uuid not null default gen_random_uuid (),
+  admin_id uuid null,
+  action text not null,
+  target_type text not null,
+  target_id uuid null,
+  parameters jsonb null,
+  executed_at timestamp without time zone null default now(),
+  constraint admin_logs_pkey primary key (log_id),
+  constraint admin_logs_admin_id_fkey foreign KEY (admin_id) references user_profiles (user_id) on update CASCADE on delete CASCADE
+) TABLESPACE pg_default;
+
+
+
+create table public.blog_comment (
+  comment_id uuid not null default gen_random_uuid (),
+  post_id uuid not null,
+  user_id uuid not null,
+  content text not null,
+  created_at timestamp with time zone not null default now(),
+  upvote_count integer null default 0,
+  downvote_count integer null default 0,
+  constraint blog_comment_pkey primary key (comment_id),
+  constraint blog_comment_post_id_fkey foreign KEY (post_id) references blogpost (post_id) on delete CASCADE,
+  constraint blog_comment_user_id_fkey foreign KEY (user_id) references user_profiles (user_id) on delete CASCADE
+) TABLESPACE pg_default;
+
+create index IF not exists idx_blog_comment_post_id on public.blog_comment using btree (post_id) TABLESPACE pg_default;
+
+
+create table public.blog_post_votes (
+  vote_id uuid not null default gen_random_uuid (),
+  post_id uuid not null,
+  user_id uuid not null,
+  vote_type smallint not null,
+  created_at timestamp with time zone not null default now(),
+  constraint blog_post_votes_pkey primary key (vote_id),
+  constraint unique_user_post_vote unique (user_id, post_id),
+  constraint blog_post_votes_post_id_fkey foreign KEY (post_id) references blogpost (post_id) on delete CASCADE,
+  constraint blog_post_votes_user_id_fkey foreign KEY (user_id) references user_profiles (user_id) on delete CASCADE,
+  constraint blog_post_votes_vote_type_check check ((vote_type = any (array['-1'::integer, 1])))
+) TABLESPACE pg_default;
+
+create trigger trg_update_blogpost_vote_counts
+after INSERT
+or DELETE
+or
+update on blog_post_votes for EACH row
+execute FUNCTION update_blogpost_vote_counts ();
+
+
+create table public.blogpost (
+  post_id uuid not null default gen_random_uuid (),
+  author_id uuid not null,
+  location_id uuid not null,
+  title character varying null,
+  content text not null,
+  created_at timestamp without time zone not null,
+  last_updated_at timestamp without time zone not null,
+  upvote_count integer null default 0,
+  downvote_count integer null default 0,
+  parent_post_id uuid null,
+  cascade_count integer not null default 0,
+  constraint blogpost_pkey primary key (post_id),
+  constraint blogpost_author_id_fkey foreign KEY (author_id) references user_profiles (user_id),
+  constraint blogpost_location_id_fkey foreign KEY (location_id) references locations (location_id),
+  constraint blogpost_parent_post_id_fkey foreign KEY (parent_post_id) references blogpost (post_id) on delete set null
+) TABLESPACE pg_default;
+
+create trigger trg_increment_cascade_count
+after INSERT on blogpost for EACH row
+execute FUNCTION increment_cascade_count ();
+
+
+create table public.bookable_item (
+  bookable_item_id uuid not null default gen_random_uuid (),
+  type public.bookable_type not null,
+  title text not null,
+  description text null,
+  price numeric not null,
+  available boolean null default true,
+  created_at timestamp without time zone null default now(),
+  location_id uuid null,
+  created_by uuid null,
+  constraint bookable_item_pkey primary key (bookable_item_id),
+  constraint bookable_item_created_by_fkey foreign KEY (created_by) references user_profiles (user_id) on delete set null,
+  constraint bookable_item_location_id_fkey foreign KEY (location_id) references locations (location_id) on delete CASCADE,
+  constraint bookable_item_price_check check ((price >= (0)::numeric))
+) TABLESPACE pg_default;
+
+create index IF not exists idx_bookable_created_by on public.bookable_item using btree (created_by) TABLESPACE pg_default;
+
+create index IF not exists idx_bookable_location on public.bookable_item using btree (location_id) TABLESPACE pg_default;
+
+create index IF not exists idx_bookable_type_available on public.bookable_item using btree (type, available) TABLESPACE pg_default;
+
+create table public.booking (
+  booking_id uuid not null default gen_random_uuid (),
+  user_id uuid not null,
+  booked_at timestamp without time zone null default now(),
+  travel_date date not null,
+  status public.booking_status null default 'pending'::booking_status,
+  constraint booking_pkey primary key (booking_id),
+  constraint booking_user_id_fkey foreign KEY (user_id) references user_profiles (user_id)
+) TABLESPACE pg_default;
+
+
+create table public.booking_item (
+  booking_id uuid not null,
+  bookable_item_id uuid not null,
+  quantity integer null default 1,
+  price_at_booking numeric not null,
+  constraint booking_item_pkey primary key (booking_id, bookable_item_id),
+  constraint booking_item_bookable_item_id_fkey foreign KEY (bookable_item_id) references bookable_item (bookable_item_id),
+  constraint booking_item_booking_id_fkey foreign KEY (booking_id) references booking (booking_id) on delete CASCADE,
+  constraint booking_item_quantity_check check ((quantity > 0))
+) TABLESPACE pg_default;
+
+create table public.comment (
+  comment_id uuid not null,
+  post_id uuid not null,
+  user_id uuid not null,
+  content text not null,
+  upvote_count integer null default 0,
+  downvote_count integer null default 0,
+  constraint comment_pkey primary key (comment_id),
+  constraint comment_post_id_fkey foreign KEY (post_id) references community_post (post_id),
+  constraint comment_user_id_fkey foreign KEY (user_id) references user_profiles (user_id)
+) TABLESPACE pg_default;
+
+create table public.community (
+  community_id uuid not null default gen_random_uuid (),
+  location_id uuid not null,
+  community_name character varying not null,
+  description text not null,
+  created_at timestamp without time zone null,
+  constraint community_pkey primary key (community_id),
+  constraint community_community_name_key unique (community_name),
+  constraint community_location_id_fkey foreign KEY (location_id) references locations (location_id)
+) TABLESPACE pg_default;
+
+create table public.community_membership (
+  membership_id uuid not null default gen_random_uuid (),
+  community_id uuid not null,
+  user_id uuid not null,
+  joined_at timestamp without time zone not null,
+  role public.membership_role not null,
+  constraint community_membership_pkey primary key (membership_id),
+  constraint unique_user_community_membership unique (user_id, community_id),
+  constraint community_membership_community_id_fkey foreign KEY (community_id) references community (community_id),
+  constraint community_membership_user_id_fkey foreign KEY (user_id) references user_profiles (user_id)
+) TABLESPACE pg_default;
+
+create table public.community_post (
+  post_id uuid not null default gen_random_uuid (),
+  community_id uuid not null,
+  user_id uuid not null,
+  title character varying not null,
+  content text not null,
+  created_at timestamp without time zone not null,
+  upvote_count integer null default 0,
+  downvote_count integer null default 0,
+  is_pinned boolean null default false,
+  is_featured boolean null default false,
+  constraint community_post_pkey primary key (post_id),
+  constraint community_post_community_id_fkey foreign KEY (community_id) references community (community_id),
+  constraint community_post_user_id_fkey foreign KEY (user_id) references user_profiles (user_id)
+) TABLESPACE pg_default;
+
+
+create table public.conversation_participants (
+  participant_id uuid not null default gen_random_uuid (),
+  conversation_id uuid not null,
+  user_id uuid not null,
+  joined_at timestamp with time zone not null default now(),
+  constraint conversation_participants_pkey primary key (participant_id),
+  constraint unique_user_conversation unique (conversation_id, user_id),
+  constraint conversation_participants_conversation_id_fkey foreign KEY (conversation_id) references conversations (conversation_id) on delete CASCADE,
+  constraint conversation_participants_user_id_fkey foreign KEY (user_id) references user_profiles (user_id) on delete CASCADE
+) TABLESPACE pg_default;
+
+create index IF not exists idx_conversation_participants_user_id on public.conversation_participants using btree (user_id) TABLESPACE pg_default;
+
+
+create table public.conversations (
+  conversation_id uuid not null default gen_random_uuid (),
+  created_at timestamp with time zone not null default now(),
+  last_message_at timestamp with time zone null,
+  constraint conversations_pkey primary key (conversation_id)
+) TABLESPACE pg_default;
+
+
+create table public.flight (
+  flight_id uuid not null,
+  airline text not null,
+  flight_number text not null,
+  origin_id uuid not null,
+  destination_id uuid not null,
+  departure_time timestamp without time zone not null,
+  arrival_time timestamp without time zone not null,
+  constraint flight_pkey primary key (flight_id),
+  constraint flight_flight_number_departure_time_key unique (flight_number, departure_time),
+  constraint flight_destination_id_fkey foreign KEY (destination_id) references locations (location_id),
+  constraint flight_flight_id_fkey foreign KEY (flight_id) references bookable_item (bookable_item_id) on delete CASCADE,
+  constraint flight_origin_id_fkey foreign KEY (origin_id) references locations (location_id)
+) TABLESPACE pg_default;
+
+
+create table public.followers (
+  follower_id uuid not null,
+  followed_id uuid not null,
+  created_at timestamp without time zone not null,
+  constraint followers_pkey primary key (follower_id, followed_id),
+  constraint followers_followed_id_fkey foreign KEY (followed_id) references user_profiles (user_id),
+  constraint followers_follower_id_fkey foreign KEY (follower_id) references user_profiles (user_id)
+) TABLESPACE pg_default;
+
+create table public.friendships (
+  user_id1 uuid not null,
+  user_id2 uuid not null,
+  created_at timestamp without time zone not null,
+  constraint friendships_pkey primary key (user_id1, user_id2),
+  constraint friendships_user_id1_fkey foreign KEY (user_id1) references user_profiles (user_id) on delete CASCADE,
+  constraint friendships_user_id2_fkey foreign KEY (user_id2) references user_profiles (user_id) on delete CASCADE
+) TABLESPACE pg_default;
+
+
+create table public.invoice (
+  invoice_id uuid not null default gen_random_uuid (),
+  booking_id uuid null,
+  issued_at timestamp without time zone null default now(),
+  overall_status public.invoice_status null default 'unpaid'::invoice_status,
+  constraint invoice_pkey primary key (invoice_id),
+  constraint invoice_booking_id_key unique (booking_id),
+  constraint invoice_booking_id_fkey foreign KEY (booking_id) references booking (booking_id) on delete CASCADE
+) TABLESPACE pg_default;
+
+create table public.invoice_item (
+  invoice_item_id uuid not null default gen_random_uuid (),
+  invoice_id uuid null,
+  bookable_item_id uuid null,
+  base_price numeric not null,
+  discount numeric null default 0,
+  final_price numeric not null,
+  payment_status public.invoice_item_status null default 'unpaid'::invoice_item_status,
+  constraint invoice_item_pkey primary key (invoice_item_id),
+  constraint invoice_item_bookable_item_id_fkey foreign KEY (bookable_item_id) references bookable_item (bookable_item_id),
+  constraint invoice_item_invoice_id_fkey foreign KEY (invoice_id) references invoice (invoice_id) on delete CASCADE
+) TABLESPACE pg_default;
+
+create table public.itinerary (
+  itinerary_id uuid not null default gen_random_uuid (),
+  user_id uuid not null,
+  created_at timestamp with time zone not null default now(),
+  status text not null default 'active'::text,
+  constraint itinerary_pkey primary key (itinerary_id),
+  constraint itinerary_user_id_fkey foreign KEY (user_id) references user_profiles (user_id) on delete CASCADE
+) TABLESPACE pg_default;
+
+
+create table public.itinerary_item (
+  item_id uuid not null default gen_random_uuid (),
+  itinerary_id uuid not null,
+  flight_details jsonb not null,
+  added_at timestamp with time zone not null default now(),
+  constraint itinerary_item_pkey primary key (item_id),
+  constraint itinerary_item_itinerary_id_fkey foreign KEY (itinerary_id) references itinerary (itinerary_id) on delete CASCADE
+) TABLESPACE pg_default;
+
+create table public.locations (
+  location_id uuid not null default gen_random_uuid (),
+  location_name text not null,
+  country text null,
+  latitude numeric null,
+  longitude numeric null,
+  description text null,
+  coordinates geography null,
+  constraint location_pkey primary key (location_id)
+) TABLESPACE pg_default;
+
+create table public.media (
+  media_id uuid not null default gen_random_uuid (),
+  target_type public.media_target_type not null,
+  target_id uuid not null,
+  url text not null,
+  media_type public.media_type null,
+  uploaded_at timestamp without time zone null default now(),
+  constraint media_pkey primary key (media_id)
+) TABLESPACE pg_default;
+
+create table public.messages (
+  message_id uuid not null default gen_random_uuid (),
+  conversation_id uuid not null,
+  sender_id uuid not null,
+  content text not null,
+  sent_at timestamp with time zone not null default now(),
+  is_read boolean not null default false,
+  constraint messages_pkey primary key (message_id),
+  constraint messages_conversation_id_fkey foreign KEY (conversation_id) references conversations (conversation_id) on delete CASCADE,
+  constraint messages_sender_id_fkey foreign KEY (sender_id) references user_profiles (user_id) on delete CASCADE
+) TABLESPACE pg_default;
+
+create index IF not exists idx_messages_conversation_id on public.messages using btree (conversation_id) TABLESPACE pg_default;
+
+create table public.package_module (
+  package_id uuid not null,
+  module_id uuid not null,
+  included_by_default boolean null default true,
+  added_at timestamp without time zone null default now(),
+  constraint package_module_pkey primary key (package_id, module_id),
+  constraint package_module_module_id_fkey foreign KEY (module_id) references bookable_item (bookable_item_id) on delete CASCADE,
+  constraint package_module_package_id_fkey foreign KEY (package_id) references travel_package (package_id) on delete CASCADE
+) TABLESPACE pg_default;
+
+create table public.payment (
+  payment_id uuid not null default gen_random_uuid (),
+  invoice_item_id uuid null,
+  amount numeric not null,
+  payment_date timestamp without time zone null default now(),
+  method text not null,
+  status public.payment_status null default 'completed'::payment_status,
+  constraint payment_pkey primary key (payment_id),
+  constraint payment_invoice_item_id_fkey foreign KEY (invoice_item_id) references invoice_item (invoice_item_id) on delete CASCADE
+) TABLESPACE pg_default;
+
+create table public.refund (
+  refund_id uuid not null default gen_random_uuid (),
+  payment_id uuid null,
+  amount numeric not null,
+  reason text null,
+  refunded_at timestamp without time zone null default now(),
+  constraint refund_pkey primary key (refund_id),
+  constraint refund_payment_id_key unique (payment_id),
+  constraint refund_payment_id_fkey foreign KEY (payment_id) references payment (payment_id) on delete CASCADE
+) TABLESPACE pg_default;
+
+
+create table public.spatial_ref_sys (
+  srid integer not null,
+  auth_name character varying(256) null,
+  auth_srid integer null,
+  srtext character varying(2048) null,
+  proj4text character varying(2048) null,
+  constraint spatial_ref_sys_pkey primary key (srid),
+  constraint spatial_ref_sys_srid_check check (
+    (
+      (srid > 0)
+      and (srid <= 998999)
+    )
+  )
+) TABLESPACE pg_default;
+
+create table public.travel_package (
+  package_id uuid not null,
+  destination_id uuid not null,
+  start_date date not null,
+  end_date date not null,
+  group_size integer null,
+  created_by uuid null,
+  updated_at timestamp without time zone null default now(),
+  constraint travel_package_pkey primary key (package_id),
+  constraint travel_package_created_by_fkey foreign KEY (created_by) references user_profiles (user_id) on delete set null,
+  constraint travel_package_destination_id_fkey foreign KEY (destination_id) references locations (location_id) on delete set null,
+  constraint travel_package_package_id_fkey foreign KEY (package_id) references bookable_item (bookable_item_id) on delete CASCADE,
+  constraint travel_package_group_size_check check ((group_size > 0))
+) TABLESPACE pg_default;
+
+create table public.user_profiles (
+  user_id uuid not null default gen_random_uuid (),
+  username text not null,
+  email text not null,
+  password text not null,
+  role public.user_role not null default 'user'::user_role,
+  profile_picture_url text null,
+  bio text null,
+  created_at timestamp without time zone null default now(),
+  constraint user_profiles_pkey primary key (user_id),
+  constraint user_profiles_email_key unique (email),
+  constraint user_profiles_username_key unique (username)
+) TABLESPACE pg_default;
+
+
+-- This table will track each user's vote on a community post.
+CREATE TABLE public.community_post_votes (
+    vote_id uuid NOT NULL DEFAULT gen_random_uuid(),
+    post_id uuid NOT NULL,
+    user_id uuid NOT NULL,
+    vote_type smallint NOT NULL, -- 1 for upvote, -1 for downvote
+    CONSTRAINT community_post_votes_pkey PRIMARY KEY (vote_id),
+    CONSTRAINT community_post_votes_post_id_fkey FOREIGN KEY (post_id) REFERENCES public.community_post(post_id) ON DELETE CASCADE,
+    CONSTRAINT community_post_votes_user_id_fkey FOREIGN KEY (user_id) REFERENCES public.user_profiles(user_id) ON DELETE CASCADE,
+    -- A user can only vote once on a post.
+    CONSTRAINT unique_user_post_vote UNIQUE (user_id, post_id),
+    CONSTRAINT vote_type_check CHECK ((vote_type = 1) OR (vote_type = -1))
+);
+
+ALTER TABLE comment
+ADD COLUMN created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
+
+-- Option 1: Add directly to flight table (if these are properties of the flight itself)
+ALTER TABLE public.flight
+ADD COLUMN seat_number TEXT NULL,
+ADD COLUMN gate TEXT NULL,
+ADD COLUMN terminal TEXT NULL;
+
+-- Option 2: Add to booking_item if specific to a booked instance of a flight
+-- This is generally better as seat/gate could vary per booking for the same flight_id
+ALTER TABLE public.booking_item
+ADD COLUMN seat_number TEXT NULL,
+ADD COLUMN gate TEXT NULL,
+ADD COLUMN terminal TEXT NULL,
+ADD COLUMN flight_class TEXT NULL; -- E.g., 'Economy', 'Business'
+
+-- You'd then need to update your backend query in adminController.js
+-- to select these new fields if you add them to the database.

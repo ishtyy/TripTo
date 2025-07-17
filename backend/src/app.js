@@ -15,7 +15,7 @@ import communityRoutes from './routes/communityRoutes.js';
 import locationRoutes from './routes/locationRoutes.js';
 import adminRoutes from './routes/adminRoutes.js';
 import flightRoutes from './routes/flightRoutes.js';
-// ✅ 1. Import the new message routes
+import communityPostRoutes from './routes/communityPostRoutes.js';
 import messageRoutes from './routes/messageRoutes.js';
 
 const app = express();
@@ -37,12 +37,12 @@ app.use('/api/communities', communityRoutes);
 app.use('/api/locations', locationRoutes);
 app.use('/api/admin', adminRoutes);
 app.use('/api/flights', flightRoutes);
-// ✅ 2. Mount the new message routes
+app.use('/api/community-posts', communityPostRoutes);
 app.use('/api/messages', messageRoutes);
 
 // --- Root Endpoint and Error Handlers ---
 app.get('/', (_req, res) => {
-  res.send('TripTo API is running 🚀');
+  res.send('TripTo API is running');
 });
 app.use(notFound);
 app.use(errorHandler);

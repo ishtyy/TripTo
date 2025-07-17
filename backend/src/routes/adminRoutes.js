@@ -1,15 +1,33 @@
-// src/routes/adminRoutes.js
-import express from 'express';
-import adminBookingRoutes from './admin/adminBookingRoutes.js';
-import adminPackageRoutes from './admin/adminPackageRoutes.js';
-import adminInvoiceRoutes from './admin/adminInvoiceRoutes.js';
-import adminPaymentRoutes from './admin/adminPaymentRoutes.js';
+import express from "express";
+import {
+    getDashboardStats,
+    getStatsOverTime,
+    getUsers,
+    getPosts,
+    getCommunities,
+    getBookings,
+    updateUserRole,
+    deleteContent,
+    updateBookingStatus,
+    getBookingDetails, // New: Import the new function
+} from "../controllers/adminController.js";
+import {
+    checkJwtMiddleware,
+    requireRole,
+} from "../middleware/authMiddleware.js";
 
 const router = express.Router();
+router.use(checkJwtMiddleware, requireRole("admin"));
 
-router.use('/bookings', adminBookingRoutes);
-router.use('/packages', adminPackageRoutes);
-router.use('/invoices', adminInvoiceRoutes);
-router.use('/payments', adminPaymentRoutes);
+router.get("/stats", getDashboardStats);
+router.get("/stats/over-time", getStatsOverTime);
+router.get("/users", getUsers);
+router.get("/posts", getPosts);
+router.get("/communities", getCommunities);
+router.get("/bookings", getBookings);
+router.get("/bookings/:bookingId", getBookingDetails); // New: Route for single booking details
+router.put("/users/:userId/role", updateUserRole);
+router.put("/bookings/:bookingId/status", updateBookingStatus);
+router.delete("/:type/:id", deleteContent);
 
 export default router;

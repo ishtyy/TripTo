@@ -8,7 +8,8 @@ import {
     getMembershipStatus,
     joinCommunity,
     leaveCommunity,
-    getCommunityMembers
+    getCommunityMembers,
+    getCommunityDetails
 } from '../controllers/communityController.js';
 
 import { checkJwtMiddleware } from '../middleware/authMiddleware.js';
@@ -22,5 +23,6 @@ router.get('/:communityId/membership', checkJwtMiddleware, getMembershipStatus);
 router.post('/:communityId/join', checkJwtMiddleware, joinCommunity);
 router.delete('/:communityId/leave', checkJwtMiddleware, leaveCommunity);
 router.get('/:communityId/members', getCommunityMembers);
+router.get('/:communityId/details', checkJwtMiddleware, getCommunityDetails);
 
 export default router;

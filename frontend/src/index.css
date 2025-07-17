@@ -180,3 +180,34 @@ body {
 .animate-gradient-xy {
     animation: gradient-xy 15s ease infinite;
 }
+
+/* ... Keep your other styles like .btn-primary-gradient ... */
+
+@layer components {
+    /* ✅ FIX: This class ensures all inputs have a consistent dark theme look */
+    .input-primary {
+        @apply w-full px-4 py-2.5 rounded-lg bg-gray-800/60 text-white placeholder-gray-400 border-2 border-gray-700/80 focus:outline-none focus:border-yellow-500/60 transition-colors duration-200;
+    }
+    
+    /* ... Keep your other .btn classes ... */
+}
+@layer components {
+    .btn {
+        @apply inline-flex items-center justify-center px-4 py-2 rounded-lg font-semibold transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
+    }
+    .btn-primary {
+        @apply bg-yellow-500 hover:bg-yellow-600 text-black;
+    }
+    .btn-secondary {
+        @apply bg-gray-700 hover:bg-gray-600 text-gray-200;
+    }
+    .btn-ghost {
+        @apply bg-transparent hover:bg-gray-700/50 text-gray-300;
+    }
+    .btn-circle {
+        @apply w-10 h-10 p-0 rounded-full flex items-center justify-center;
+    }
+    .input-primary {
+        @apply w-full px-4 py-2.5 rounded-lg bg-gray-800/60 text-white placeholder-gray-400 border-2 border-gray-700/80 focus:outline-none focus:border-yellow-500/60 transition-colors duration-200;
+    }
+}
