@@ -22,6 +22,7 @@ import AdminUsersPage from './pages/admin/AdminUsersPage.jsx';
 import AdminPostsPage from './pages/admin/AdminPostsPage.jsx';
 import AdminCommunitiesPage from './pages/admin/AdminCommunitiesPage.jsx';
 import AdminBookingsPage from './pages/admin/AdminBookingsPage.jsx';
+import AdminPackagesPage from './pages/admin/AdminPackagesPage.jsx'; // Correctly imported
 import AdminRoute from "./components/auth/AdminRoute.jsx";
 
 // --- Modals ---
@@ -92,11 +93,11 @@ export default function App() {
             <Toaster 
                 position="top-right"
                 toastOptions={{
-                  style: {
-                    background: '#1e293b',
-                    color: '#e2e8f0',
-                    border: '1px solid #334155',
-                  },
+                    style: {
+                        background: '#1e293b',
+                        color: '#e2e8f0',
+                        border: '1px solid #334155',
+                    },
                 }}
             />
             <BookingProvider>
@@ -106,12 +107,13 @@ export default function App() {
 
                     {/* Protected Admin Studio routes */}
                     <Route path="/admin/*" element={<AdminRoute user={user} loading={loading} />}>
-                        <Route element={<AdminLayout onSignOut={handleAdminSignOut} />}>
+                        <Route element={<AdminLayout onSignOut={handleAdminSignOut} user={user} />}>
                             <Route index element={<AdminDashboardPage />} />
                             <Route path="users" element={<AdminUsersPage />} />
                             <Route path="posts" element={<AdminPostsPage />} />
                             <Route path="communities" element={<AdminCommunitiesPage />} />
                             <Route path="bookings" element={<AdminBookingsPage />} />
+                            <Route path="packages" element={<AdminPackagesPage />} />
                         </Route>
                     </Route>
 
