@@ -1,8 +1,10 @@
+// src/components/common/Modal.jsx
+
 import React, { useEffect } from "react";
 import ReactDOM from "react-dom";
 import { X } from "lucide-react";
 
-export default function Modal({ open, onClose, children }) {
+export default function Modal({ open, onClose, children, maxWidthClass = "max-w-md" }) {
   useEffect(() => {
     const handleKey = (e) => {
       if (e.key === "Escape") onClose();
@@ -27,7 +29,7 @@ export default function Modal({ open, onClose, children }) {
       onClick={onClose}
     >
       <div
-        className="bg-gray-900/80 border border-gray-700/80 rounded-xl shadow-2xl p-6 max-w-md w-full relative"
+        className={`bg-gray-900/80 border border-gray-700/80 rounded-xl shadow-2xl p-6 ${maxWidthClass} w-full relative`}
         onClick={(e) => e.stopPropagation()}
       >
         <button

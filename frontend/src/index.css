@@ -3,50 +3,13 @@
 @tailwind components;
 @tailwind utilities;
 
-/* Make entire page dark background + white text by default */
-body {
-  @apply bg-gray-900 text-gray-100 font-body;
-}
-
-/* Optional: style scrollbars */
-::-webkit-scrollbar {
-  width: 8px;
-}
-::-webkit-scrollbar-track {
-  @apply bg-gray-800;
-}
-::-webkit-scrollbar-thumb {
-  @apply bg-sky-700 rounded;
-}
-.custom-scrollbar::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-.custom-scrollbar::-webkit-scrollbar-track {
-  @apply bg-gray-700 rounded-full;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb {
-  @apply bg-sky-500 rounded-full;
-}
-.custom-scrollbar::-webkit-scrollbar-thumb:hover {
-  @apply bg-sky-400;
-}
-.bg-dots {
-  background-image: radial-gradient(#2d213f 1px, transparent 1px);
-  background-size: 20px 20px;
-}
-/* src/index.css */
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
-
-/* Make entire page dark background + white text by default */
+/* Body and Global Defaults */
 body {
   @apply bg-black text-gray-200 font-body;
   background-color: #05010a; /* A very dark purple-ish black */
 }
 
-/* Updated scrollbar with the new purple theme */
+/* Scrollbar Styles */
 ::-webkit-scrollbar {
   width: 10px;
 }
@@ -73,52 +36,30 @@ body {
 .custom-scrollbar::-webkit-scrollbar-thumb:hover {
   @apply bg-purple-500;
 }
-/* Add these new styles at the end of your index.css file */
 
+/* Background Dots Pattern */
+.bg-dots {
+  background-image: radial-gradient(#2d213f 1px, transparent 1px);
+  background-size: 20px 20px;
+}
+
+/* Text Gradient Animation */
 @keyframes text-gradient-animation {
   0% { background-position: 0% 50%; }
   50% { background-position: 100% 50%; }
   100% { background-position: 0% 50%; }
 }
 
-/* Find the .animated-gradient-text rule and REPLACE it with this new gradient */
-
 .animated-gradient-text {
-  /* Create a new gradient background with cyan and blue */
   background: linear-gradient(90deg, #22d3ee, #3b82f6, #22d3ee); /* Cyan to Blue back to Cyan */
   background-size: 200% 200%;
-
-  /* Clip the background to the text */
   -webkit-background-clip: text;
   background-clip: text;
-
-  /* Make the text color transparent to show the gradient */
   color: transparent;
-
-  /* Apply the animation */
   animation: text-gradient-animation 2s ease-in-out infinite;
 }
 
-/* The rest of your CSS file remains the same */
-@keyframes fade-in-up {
-  from {
-    opacity: 0;
-    /* transform: translateY(6px); */
-  }
-  to {
-    opacity: 1;
-    /* transform: translateY(0); */
-  }
-}
-
-.animate-fade-in-up {
-  /* This class will be applied to elements we want to animate */
-  animation: fade-in-up 0.5s ease-out forwards;
-  opacity: 0; /* Start hidden */
-}
-/* NEW: Keyframes for the hero title animation */
-/* Find the existing @keyframes hero-glow-animation and REPLACE it with this more subtle version */
-
+/* Hero Text Glow Animation */
 @keyframes hero-glow-animation {
   0%, 100% {
     text-shadow: 0 0 4px rgba(168, 85, 247, 0.5), 0 0 8px rgba(168, 85, 247, 0.3);
@@ -128,44 +69,36 @@ body {
   }
 }
 
-/* The rest of your index.css file remains the same */
-/* NEW: Class for the animated "Adventure" text */
 .animated-hero-text {
     animation: hero-glow-animation 5s ease-in-out infinite;
 }
 
-
-/* Keyframes for fade-in-up animation (Used for page transitions and lists) */
+/* General Fade-in Animations */
 @keyframes fade-in-up {
-  from {
-    opacity: 0;
-    /* transform: translateY(6px); */
-  }
-  to {
-    opacity: 1;
-    /* transform: translateY(0); */
-  }
-}
-
-/* Class to apply the fade-in-up animation */
-.animate-fade-in-up {
-  animation: fade-in-up 0.5s ease-out forwards;
-  opacity: 0; /* Start hidden */
-}
-@keyframes fade-in {
   from { opacity: 0; }
   to { opacity: 1; }
 }
 
-.animate-fade-in {
-  animation: fade-in 0.3s ease-out forwards;
+.animate-fade-in-up {
+  animation: fade-in-up 0.5s ease-out forwards;
+  opacity: 0; /* Start hidden */
 }
 
-/* Add this class at the end of your file */
+@keyframes fadeIn {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: translateY(0); }
+}
+
+.animate-fadeIn { /* Renamed to avoid conflict with Tailwind's built-in animate-fade-in */
+  animation: fadeIn 0.3s ease-out forwards;
+}
+
+/* Calendar Picker Dark Theme */
 .dark-calendar-picker {
   color-scheme: dark;
 }
 
+/* Gradient XY Animation */
 @keyframes gradient-xy {
     0%, 100% {
         background-size: 400% 400%;
@@ -181,17 +114,9 @@ body {
     animation: gradient-xy 15s ease infinite;
 }
 
-/* ... Keep your other styles like .btn-primary-gradient ... */
-
+/* Tailwind Components Layer (for reusable component-like styles) */
 @layer components {
-    /* ✅ FIX: This class ensures all inputs have a consistent dark theme look */
-    .input-primary {
-        @apply w-full px-4 py-2.5 rounded-lg bg-gray-800/60 text-white placeholder-gray-400 border-2 border-gray-700/80 focus:outline-none focus:border-yellow-500/60 transition-colors duration-200;
-    }
-    
-    /* ... Keep your other .btn classes ... */
-}
-@layer components {
+    /* Buttons */
     .btn {
         @apply inline-flex items-center justify-center px-4 py-2 rounded-lg font-semibold transition-colors duration-200 disabled:opacity-50 disabled:cursor-not-allowed;
     }
@@ -207,320 +132,13 @@ body {
     .btn-circle {
         @apply w-10 h-10 p-0 rounded-full flex items-center justify-center;
     }
+    /* Inputs */
     .input-primary {
         @apply w-full px-4 py-2.5 rounded-lg bg-gray-800/60 text-white placeholder-gray-400 border-2 border-gray-700/80 focus:outline-none focus:border-yellow-500/60 transition-colors duration-200;
     }
 }
-/* === NEW ADMIN LAYOUT STYLES === */
 
-:root {
-  --admin-bg: #111827; /* Dark Gray */
-  --sidebar-bg: rgba(23, 30, 44, 0.7); /* Semi-transparent dark blue-gray */
-  --content-bg: #1a202c; /* Slightly lighter dark */
-  --accent-color: #22d3ee; /* Cyan */
-  --text-primary: #e5e7eb; /* Light Gray */
-  --text-secondary: #9ca3af; /* Medium Gray */
-  --border-color: rgba(255, 255, 255, 0.1);
-}
-
-.admin-layout {
-  display: flex;
-  min-height: 100vh;
-  background-color: var(--admin-bg);
-  background-image: radial-gradient(circle at 1px 1px, rgba(255, 255, 255, 0.05) 1px, transparent 0);
-  background-size: 25px 25px;
-  color: var(--text-primary);
-}
-
-/* --- Sidebar --- */
-.admin-sidebar {
-  width: 260px;
-  background: var(--sidebar-bg);
-  border-right: 1px solid var(--border-color);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
-  display: flex;
-  flex-direction: column;
-  padding: 1.5rem 1rem;
-  transition: width 0.3s ease;
-}
-
-.sidebar-header {
-  margin-bottom: 2rem;
-  display: flex;
-  justify-content: center;
-}
-
-.sidebar-nav {
-  flex-grow: 1;
-  display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-}
-
-.sidebar-link {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 1rem;
-  border-radius: 8px;
-  color: var(--text-secondary);
-  font-weight: 500;
-  text-decoration: none;
-  transition: background-color 0.2s ease, color 0.2s ease;
-}
-
-.sidebar-link:hover {
-  background-color: rgba(255, 255, 255, 0.05);
-  color: var(--text-primary);
-}
-
-/* Active NavLink style */
-.sidebar-link.active {
-  background: var(--accent-color);
-  color: #111827; /* Dark text on active link */
-  font-weight: 600;
-  box-shadow: 0 4px 15px -5px rgba(34, 211, 238, 0.4);
-}
-
-.sidebar-footer {
-  margin-top: auto;
-  padding-top: 1rem;
-  border-top: 1px solid var(--border-color);
-}
-
-.sidebar-footer .user-profile {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.5rem;
-    margin-bottom: 1rem;
-}
-
-.sidebar-footer .avatar {
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    border: 2px solid var(--accent-color);
-}
-
-.sidebar-footer .user-info {
-    display: flex;
-    flex-direction: column;
-}
-
-.sidebar-footer .username {
-    font-weight: 600;
-    color: var(--text-primary);
-}
-
-.sidebar-footer .role {
-    font-size: 0.8rem;
-    color: var(--text-secondary);
-}
-
-.logout-btn {
-    width: 100%;
-    border: none;
-    background: none;
-    cursor: pointer;
-}
-
-/* --- Main Content Area --- */
-.admin-main-content {
-  flex: 1;
-  display: flex;
-  flex-direction: column;
-  overflow-y: auto;
-}
-
-/* --- Header --- */
-.admin-header {
-  padding: 1.5rem 2rem;
-  background: rgba(17, 24, 39, 0.8);
-  backdrop-filter: blur(10px);
-  border-bottom: 1px solid var(--border-color);
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-}
-
-.header-title {
-  font-size: 1.75rem;
-  font-weight: 700;
-  color: var(--text-primary);
-}
-
-.header-actions {
-  display: flex;
-  align-items: center;
-  gap: 1.5rem;
-}
-
-.header-actions .action-btn {
-  background: none;
-  border: none;
-  color: var(--text-secondary);
-  cursor: pointer;
-  transition: color 0.2s ease;
-}
-
-.header-actions .action-btn:hover {
-  color: var(--accent-color);
-}
-
-.header-actions .header-user .avatar {
-    width: 36px;
-    height: 36px;
-    border-radius: 50%;
-}
-
-/* --- Page Content --- */
-.admin-page-content {
-  padding: 2rem;
-}
-
-/* === ADD THIS TO index.css for the new Admin Layout features === */
-
-/* New gradient for the admin logo */
-.admin-animated-gradient-text {
-  font-family: 'Poppins', sans-serif;
-  background: linear-gradient(45deg, #ef4444, #f97316, #eab308);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-
-/* Styles for the new clickable user profile link in the sidebar */
-.user-profile-link {
-  text-decoration: none;
-  border-radius: 8px;
-  display: block;
-  margin-bottom: 1rem;
-  transition: background-color 0.2s ease;
-}
-
-.user-profile-link:hover {
-  background-color: rgba(255, 255, 255, 0.05);
-}
-
-.sidebar-footer .user-profile {
-    display: flex;
-    align-items: center;
-    gap: 0.75rem;
-    padding: 0.75rem;
-}
-
-/* === ADD THIS to index.css for the new Admin Layout === */
-
-/* Main layout container */
-.admin-layout-container {
-  display: flex;
-  background-color: #111827;
-}
-
-.admin-main-content-area {
-  flex: 1; /* Allows the main content to take up the remaining space */
-  overflow-y: auto; /* Makes only the main content scrollable */
-  height: 100vh;
-}
-
-.admin-page-content {
-  padding: 2rem;
-}
-
-/* Gradient for the Admin Logo */
-.admin-animated-gradient-text {
-  font-family: 'Poppins', sans-serif;
-  background: linear-gradient(45deg, #ef4444, #f97316, #eab308);
-  -webkit-background-clip: text;
-  background-clip: text;
-  color: transparent;
-}
-
-/* Clickable User Profile in Sidebar */
-.user-profile-link {
-  text-decoration: none;
-  border-radius: 8px;
-  display: block;
-  margin-bottom: 0.5rem;
-  transition: background-color 0.2s ease;
-}
-
-.user-profile-link:hover {
-  background-color: rgba(255, 255, 255, 0.05);
-}
-
-.user-profile {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem;
-}
-
-.user-profile .avatar {
-  width: 40px;
-  height: 40px;
-  border-radius: 50%;
-  border: 2px solid #f97316; /* Orange border */
-}
-
-.user-profile .user-info {
-  display: flex;
-  flex-direction: column;
-}
-
-.user-profile .username {
-  font-weight: 600;
-  color: #e5e7eb;
-}
-
-.user-profile .role {
-  font-size: 0.8rem;
-  color: #9ca3af;
-}
-/* === ADD THIS to index.css for the Admin Logo Animation === */
-
-/*
-  1. We define the keyframes for the animation.
-  This smoothly shifts the gradient's position from left to right and back again.
-*/
-@keyframes admin-gradient-shift {
-  0% {
-    background-position: 0% 50%;
-  }
-  50% {
-    background-position: 100% 50%;
-  }
-  100% {
-    background-position: 0% 50%;
-  }
-}
-
-/*
-  2. We update the existing admin logo class to USE the animation.
-*/
-/* === FINAL CSS for the Admin Logo (Add to index.css) === */
-
-/* Keyframes that animate the gradient colors directly */
-@keyframes admin-color-cycle {
-  0%, 100% {
-    background-image: linear-gradient(45deg, #f97316, #eab308); /* Orange -> Yellow */
-  }
-  50% {
-    background-image: linear-gradient(45deg, #ef4444, #f97316); /* Red -> Orange */
-  }
-}
-
-/* === FINAL CSS for Animated Admin Logo (Add to index.css) === */
-
-/*
-  1. Keyframes to create the "breathing" or "shifting" motion.
-  This smoothly moves the gradient from left to right and back.
-*/
+/* Admin Logo Animation (cannot be entirely utility classes) */
 @keyframes admin-gradient-motion {
   0%,
   100% {
@@ -531,11 +149,7 @@ body {
   }
 }
 
-/*
-  2. The style for the admin logo's text. This brings back the motion.
-*/
 .admin-animated-gradient-text {
-  /* The red-orange-yellow gradient, expanded to create a seamless loop */
   background: linear-gradient(
     -45deg,
     #ef4444, /* Red */
@@ -544,442 +158,9 @@ body {
     #f97316, /* Orange */
     #ef4444  /* Red */
   );
-
-  /* Make the background gradient much larger than the text itself */
   background-size: 400% 400%;
-
-  /* Clip the oversized background to the shape of the text */
   -webkit-background-clip: text;
   background-clip: text;
-  -webkit-text-fill-color: transparent; /* Hides the original text color */
-  
-  /* Apply the smooth motion animation */
+  -webkit-text-fill-color: transparent;
   animation: admin-gradient-motion 5s ease-in-out infinite;
-}
-
-/* === ADD THIS to index.css for the new Vibrant Admin UI === */
-
-.vibrant-admin-page {
-  animation: fadeIn 0.5s ease-in-out;
-}
-
-.page-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 2rem;
-}
-
-.page-title {
-  font-size: 2.25rem;
-  font-weight: 800;
-  color: #fff;
-  text-shadow: 0 2px 10px rgba(0, 0, 0, 0.3);
-}
-
-.add-new-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.5rem;
-  background-image: linear-gradient(to right, #f97316, #ef4444);
-  color: white;
-  font-weight: 600;
-  border-radius: 8px;
-  border: none;
-  cursor: pointer;
-  transition: all 0.3s ease;
-  box-shadow: 0 4px 15px -5px rgba(249, 115, 22, 0.5);
-}
-
-.add-new-btn:hover {
-  transform: translateY(-2px);
-  box-shadow: 0 6px 20px -5px rgba(249, 115, 22, 0.7);
-}
-
-/* Tabs for Bookings Page */
-.tabs-container {
-  display: flex;
-  gap: 0.5rem;
-  margin-bottom: 1.5rem;
-  border-bottom: 2px solid #374151; /* Gray-700 */
-}
-
-.tab-btn {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  padding: 0.75rem 1.25rem;
-  font-weight: 600;
-  color: #9ca3af; /* Gray-400 */
-  border: none;
-  background: none;
-  cursor: pointer;
-  border-bottom: 3px solid transparent;
-  transform: translateY(2px);
-  transition: all 0.2s ease-in-out;
-}
-
-.tab-btn:hover {
-  color: #e5e7eb; /* Gray-200 */
-}
-
-.tab-btn.active {
-  color: #fb923c; /* Orange-400 */
-  border-bottom-color: #fb923c;
-}
-
-/* General fade-in animation */
-@keyframes fadeIn {
-  from { opacity: 0; transform: translateY(10px); }
-  to { opacity: 1; transform: translateY(0); }
-}
-/* === ADD THIS to index.css for the Vibrant Booking Modal === */
-
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background-color: rgba(0, 0, 0, 0.7);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 50;
-  padding: 1rem;
-}
-
-.modal-content {
-  background-color: #1f2937; /* Gray-800 */
-  color: #e5e7eb; /* Gray-200 */
-  border-radius: 12px;
-  width: 100%;
-  max-width: 56rem; /* 6xl */
-  max-height: 90vh;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  border: 1px solid #4b5563; /* Gray-600 */
-}
-
-.modal-close-btn {
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
-  color: #9ca3af; /* Gray-400 */
-  transition: color 0.2s;
-}
-.modal-close-btn:hover {
-  color: white;
-}
-
-.modal-title {
-  font-size: 1.875rem; /* 3xl */
-  font-weight: 700;
-  padding: 1.5rem;
-  border-bottom: 1px solid #374151; /* Gray-700 */
-}
-
-.modal-scroll-area {
-  padding: 1.5rem;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.modal-section {
-  background-color: #374151; /* Gray-700 */
-  padding: 1rem;
-  border-radius: 8px;
-}
-
-.section-title {
-  font-size: 1.25rem;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.75rem;
-  color: #fb923c; /* Orange-400 */
-}
-
-.item-card {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  background-color: #4b5563; /* Gray-600 */
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  margin-bottom: 0.5rem;
-}
-
-/* Vibrant Boarding Pass */
-.vibrant-boarding-pass {
-  background-image: linear-gradient(to br, #374151, #1f2937);
-  border-radius: 12px;
-  padding: 1rem;
-  border: 1px solid #4b5563;
-  margin-top: 1rem;
-}
-
-.pass-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  border-bottom: 1px dashed #6b7280;
-  padding-bottom: 0.75rem;
-  margin-bottom: 1rem;
-}
-
-.pass-title {
-  font-weight: 800;
-  font-size: 1.5rem;
-  color: #f97316; /* Orange-500 */
-}
-
-.pass-airline {
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  font-weight: 600;
-}
-
-.pass-route {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  text-align: center;
-  margin-bottom: 1rem;
-}
-
-.route-label { font-size: 0.75rem; color: #9ca3af; }
-.route-iata { font-size: 2.25rem; font-weight: 800; line-height: 1; }
-.route-city { font-size: 0.875rem; color: #d1d5db; }
-.route-plane { text-align: center; color: #9ca3af; font-size: 0.75rem; }
-.route-plane svg { color: #f97316; margin: auto; }
-
-.pass-details {
-  display: grid;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
-  gap: 0.75rem;
-  border-top: 1px dashed #6b7280;
-  padding-top: 1rem;
-}
-
-@media (min-width: 768px) {
-  .pass-details {
-    grid-template-columns: repeat(4, minmax(0, 1fr));
-  }
-}
-
-.detail-label { font-size: 0.75rem; color: #9ca3af; display: block; }
-.detail-value { font-weight: 600; font-family: monospace; }
-/* === ADD THIS to index.css for Dashboard Polish === */
-
-.stat-card {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  padding: 1.5rem;
-  border-radius: 12px;
-  background-color: #1f2937; /* Gray-800 */
-  border: 1px solid #374151; /* Gray-700 */
-  transition: all 0.3s ease;
-  cursor: pointer;
-}
-
-.stat-card:hover {
-  transform: translateY(-5px);
-  box-shadow: 0 10px 20px rgba(0, 0, 0, 0.2);
-}
-
-.stat-icon {
-  padding: 0.75rem;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-}
-
-.stat-card.blue .stat-icon { background-color: rgba(59, 130, 246, 0.2); color: #60a5fa; }
-.stat-card.green .stat-icon { background-color: rgba(34, 197, 94, 0.2); color: #4ade80; }
-.stat-card.purple .stat-icon { background-color: rgba(168, 85, 247, 0.2); color: #c084fc; }
-.stat-card.yellow .stat-icon { background-color: rgba(245, 158, 11, 0.2); color: #facc15; }
-
-.stat-title { color: #9ca3af; }
-.stat-value { font-size: 2.25rem; font-weight: 800; line-height: 1.1; }
-.stat-subvalue { font-size: 0.875rem; color: #f59e0b; }
-
-.chart-container {
-  background-color: #1f2937; /* Gray-800 */
-  border: 1px solid #374151; /* Gray-700 */
-  border-radius: 12px;
-  padding: 1.5rem;
-  position: relative;
-}
-
-.chart-title {
-  font-size: 1.5rem;
-  font-weight: 700;
-  margin-bottom: 1rem;
-}
-
-.chart-wrapper {
-  height: 350px;
-}
-
-/* === ADD THIS to index.css for the Redesigned Booking Modals === */
-
-.modal-backdrop {
-  position: fixed;
-  inset: 0;
-  background-color: rgba(0, 0, 0, 0.8);
-  display: flex;
-  justify-content: center;
-  align-items: center;
-  z-index: 50;
-  padding: 1rem;
-}
-
-.modal-content {
-  background-color: #1f2937;
-  color: #e5e7eb;
-  border-radius: 12px;
-  width: 100%;
-  max-width: 50rem;
-  max-height: 90vh;
-  display: flex;
-  flex-direction: column;
-  overflow: hidden;
-  border: 1px solid #4b5563;
-}
-
-.modal-close-btn {
-  position: absolute;
-  top: 1rem;
-  right: 1rem;
-  color: #9ca3af;
-  transition: color 0.2s;
-}
-.modal-close-btn:hover { color: white; }
-
-.modal-loading {
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
-  height: 20rem;
-}
-
-.modal-title {
-  font-size: 1.5rem;
-  font-weight: 700;
-  padding: 1rem 1.5rem;
-  border-bottom: 1px solid #374151;
-  color: #fb923c;
-}
-
-.modal-scroll-area {
-  padding: 1.5rem;
-  overflow-y: auto;
-  display: flex;
-  flex-direction: column;
-  gap: 1.5rem;
-}
-
-.modal-section {
-  background-color: #374151;
-  padding: 1.25rem;
-  border-radius: 8px;
-}
-
-.section-title {
-  font-size: 1.1rem;
-  font-weight: 600;
-  display: flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 0.75rem;
-}
-
-.item-card {
-  display: flex;
-  align-items: center;
-  gap: 0.75rem;
-  background-color: #4b5563;
-  padding: 0.5rem 1rem;
-  border-radius: 6px;
-  margin-bottom: 0.5rem;
-}
-
-.status-approved { color: #4ade80; }
-.status-pending { color: #facc15; }
-.status-cancelled { color: #f87171; }
-
-/* Vibrant Boarding Pass */
-.vibrant-boarding-pass {
-  background-image: linear-gradient(to br, #374151, #1f2937);
-  border-radius: 12px;
-  padding: 1rem;
-  border: 1px solid #4b5563;
-  margin-top: 1rem;
-}
-.pass-header {
-  display: flex; justify-content: space-between; align-items: center;
-  border-bottom: 1px dashed #6b7280; padding-bottom: 0.75rem; margin-bottom: 1rem;
-}
-.pass-title { font-weight: 800; font-size: 1.25rem; color: #f97316; }
-.pass-airline { display: flex; align-items: center; gap: 0.5rem; font-weight: 600; }
-.pass-route { display: flex; justify-content: space-between; align-items: center; text-align: center; margin-bottom: 1rem; }
-.route-iata { font-size: 2rem; font-weight: 800; line-height: 1; color: white; }
-.route-city { font-size: 0.75rem; color: #d1d5db; }
-.route-plane { text-align: center; color: #9ca3af; font-size: 0.75rem; }
-.route-plane svg { color: #f97316; margin: auto; margin-bottom: 0.25rem; }
-.pass-details {
-  display: grid; grid-template-columns: repeat(2, 1fr); gap: 0.75rem;
-  border-top: 1px dashed #6b7280; padding-top: 1rem; font-size: 0.75rem;
-}
-@media (min-width: 768px) { .pass-details { grid-template-columns: repeat(4, 1fr); } }
-.pass-details > div { display: flex; flex-direction: column; }
-.pass-details > div > span { color: #9ca3af; }
-.pass-details > div > strong { font-family: monospace; color: white; }
-
-
-/* === ADD THIS to index.css for the Dashboard Chart === */
-
-.chart-header {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 1rem;
-}
-
-.chart-title {
-  font-size: 1.5rem;
-  font-weight: 700;
-}
-
-.time-span-selector {
-  display: flex;
-  align-items: center;
-  background-color: #374151; /* Gray-700 */
-  padding: 4px;
-  border-radius: 8px;
-}
-
-.time-span-selector button {
-  padding: 0.25rem 0.75rem;
-  font-size: 0.875rem;
-  font-weight: 500;
-  color: #d1d5db; /* Gray-300 */
-  border: none;
-  background-color: transparent;
-  border-radius: 6px;
-  cursor: pointer;
-  transition: all 0.2s ease-in-out;
-}
-
-.time-span-selector button.active {
-  background-color: #f97316; /* Orange-500 */
-  color: white;
-  box-shadow: 0 2px 10px -2px rgba(249, 115, 22, 0.5);
 }

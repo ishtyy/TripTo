@@ -19,10 +19,10 @@ const handleAction = (action, id) => {
 
 export default function AdminPackagesPage() {
     return (
-        <div className="vibrant-admin-page">
-            <div className="page-header">
-                <h1 className="page-title">Packages Management</h1>
-                <button className="add-new-btn">
+        <div className="p-8 animate-fadeIn">
+            <div className="flex justify-between items-center mb-8">
+                <h1 className="text-4xl font-extrabold text-white">Packages Management</h1>
+                <button className="flex items-center space-x-2 px-6 py-3 bg-gradient-to-r from-orange-500 to-red-500 text-white font-semibold rounded-lg border-none cursor-pointer transition-all shadow-lg shadow-orange-500/40 hover:translate-y-[-2px] hover:shadow-xl hover:shadow-orange-500/60">
                     <PlusCircle size={20} />
                     <span>Create New Package</span>
                 </button>

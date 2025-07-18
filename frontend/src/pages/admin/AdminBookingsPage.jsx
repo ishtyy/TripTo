@@ -1,3 +1,5 @@
+// src/pages/admin/AdminBookingsPage.jsx
+
 import React, { useState, useEffect } from 'react';
 import { DynamicDataTable } from '../../components/Admin/DynamicDataTable';
 import api from '../../services/api';
@@ -8,6 +10,7 @@ import {
 import toast from 'react-hot-toast';
 import { AnimatePresence, motion } from 'framer-motion';
 import ConfirmationModal from '../../components/common/ConfirmationModal';
+import Modal from '../../components/common/Modal'; // Import the common Modal component
 
 // --- Helper Functions ---
 const formatDate = (dateString) => dateString ? new Date(dateString).toLocaleDateString(undefined, { year: 'numeric', month: 'long', day: 'numeric' }) : 'N/A';
@@ -19,42 +22,42 @@ const formatDuration = (min) => min ? `${Math.floor(min / 60)}h ${min % 60}m` : 
 const BoardingPass = ({ segment, passenger, travelDate }) => {
     if (!segment) return null;
     return (
-        <div className="vibrant-boarding-pass">
-            <div className="pass-header">
-                <h3 className="pass-title">BOARDING PASS</h3>
-                <span className="pass-airline"><PlaneTakeoff size={20} /> {segment.airline}</span>
+        <div className="bg-gradient-to-br from-gray-700 to-gray-800 rounded-xl p-4 border border-gray-600 mt-4">
+            <div className="flex justify-between items-center border-b border-dashed border-gray-600 pb-3 mb-4">
+                <h3 className="font-extrabold text-2xl text-orange-500">BOARDING PASS</h3>
+                <span className="flex items-center space-x-2 font-semibold"><PlaneTakeoff size={20} /> {segment.airline}</span>
             </div>
-            <div className="pass-route">
+            <div className="flex justify-between items-center text-center mb-4">
                 <div>
-                    <span className="route-iata">{segment.origin_iata}</span>
-                    <span className="route-city">{segment.origin_name}</span>
+                    <span className="text-4xl font-extrabold leading-none text-white">{segment.origin_iata}</span>
+                    <span className="block text-sm text-gray-300">{segment.origin_name}</span>
                 </div>
-                <div className="route-plane">
-                    <Plane size={28} />
+                <div className="text-center text-gray-400 text-xs">
+                    <Plane size={28} className="text-orange-500 mx-auto mb-1" />
                     <span>{formatDuration(segment.duration_minutes)}</span>
                 </div>
                 <div>
-                    <span className="route-iata">{segment.destination_iata}</span>
-                    <span className="route-city">{segment.destination_name}</span>
+                    <span className="text-4xl font-extrabold leading-none text-white">{segment.destination_iata}</span>
+                    <span className="block text-sm text-gray-300">{segment.destination_name}</span>
                 </div>
             </div>
-            <div className="pass-details">
-                <div><span>PASSENGER</span><strong>{passenger.name?.toUpperCase()}</strong></div>
-                <div><span>FLIGHT</span><strong>{segment.flight_number}</strong></div>
-                <div><span>DATE</span><strong>{formatDate(travelDate)}</strong></div>
-                <div><span>DEPARTS</span><strong>{formatTime(segment.departure_time)}</strong></div>
-                <div><span>CLASS</span><strong>{segment.flight_class || 'ECONOMY'}</strong></div>
-                <div><span>SEAT</span><strong>{segment.seat_number || 'N/A'}</strong></div>
-                <div><span>GATE</span><strong>{segment.gate || 'N/A'}</strong></div>
-                <div><span>TERMINAL</span><strong>{segment.terminal || 'N/A'}</strong></div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 border-t border-dashed border-gray-600 pt-4 text-xs">
+                <div className="flex flex-col"><span>PASSENGER</span><strong className="font-mono text-white">{passenger.name?.toUpperCase()}</strong></div>
+                <div className="flex flex-col"><span>FLIGHT</span><strong className="font-mono text-white">{segment.flight_number}</strong></div>
+                <div className="flex flex-col"><span>DATE</span><strong className="font-mono text-white">{formatDate(travelDate)}</strong></div>
+                <div className="flex flex-col"><span>DEPARTS</span><strong className="font-mono text-white">{formatTime(segment.departure_time)}</strong></div>
+                <div className="flex flex-col"><span>CLASS</span><strong className="font-mono text-white">{segment.flight_class || 'ECONOMY'}</strong></div>
+                <div className="flex flex-col"><span>SEAT</span><strong className="font-mono text-white">{segment.seat_number || 'N/A'}</strong></div>
+                <div className="flex flex-col"><span>GATE</span><strong className="font-mono text-white">{segment.gate || 'N/A'}</strong></div>
+                <div className="flex flex-col"><span>TERMINAL</span><strong className="font-mono text-white">{segment.terminal || 'N/A'}</strong></div>
             </div>
         </div>
     );
 };
 
 
-// --- Redesigned BookingDetailsModal Component (Vibrant Dark Theme) ---
-const BookingDetailsModal = ({ isOpen, onClose, bookingId }) => {
+// --- Refactored BookingDetailsModal Component to use common Modal ---
+const BookingDetailsModal = ({ isOpen, onClose, bookingId, maxWidthClass }) => {
     const [details, setDetails] = useState(null);
     const [loading, setLoading] = useState(true);
 
@@ -75,50 +78,47 @@ const BookingDetailsModal = ({ isOpen, onClose, bookingId }) => {
         fetchDetails();
     }, [isOpen, bookingId, onClose]);
 
-    if (!isOpen) return null;
-
     return (
-        <AnimatePresence>
-            <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="modal-backdrop">
-                <motion.div initial={{ scale: 0.9, y: 20 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.9, y: 20 }} className="modal-content" onClick={e => e.stopPropagation()}>
-                    <button onClick={onClose} className="modal-close-btn"><X size={24} /></button>
-                    {loading ? (
-                        <div className="modal-loading"><Loader2 className="animate-spin text-orange-500" size={48} /></div>
-                    ) : details && (
-                        <>
-                            <h2 className="modal-title">Booking Details</h2>
-                            <div className="modal-scroll-area">
-                                <div className="modal-section">
-                                    <h3 className="section-title"><User size={20}/>Customer & Booking Info</h3>
-                                    <p><strong>Username:</strong> {details.user_info.username}</p>
-                                    <p><strong>Booking ID:</strong> {details.booking_id}</p>
-                                    <p><strong>Status:</strong> <span className={`font-bold status-${details.status}`}>{details.status}</span></p>
+        <Modal open={isOpen} onClose={onClose} maxWidthClass={maxWidthClass}>
+            {loading ? (
+                <div className="flex flex-col items-center justify-center h-80"><Loader2 className="animate-spin text-orange-500" size={48} /></div>
+            ) : details && (
+                <div className="bg-gray-800 text-gray-200 rounded-xl flex flex-col max-h-[80vh] overflow-hidden border border-gray-700">
+                    <h2 className="text-3xl font-bold p-6 border-b border-gray-700 text-orange-400">Booking Details</h2>
+                    <div className="p-6 overflow-y-auto flex flex-col gap-6">
+                        <div className="bg-gray-700 p-5 rounded-lg">
+                            <h3 className="text-xl font-semibold flex items-center space-x-2 mb-3 text-orange-400"><User size={20}/>Customer & Booking Info</h3>
+                            <p><strong>Username:</strong> {details.user_info.username}</p>
+                            <p><strong>Booking ID:</strong> {details.booking_id}</p>
+                            <p><strong>Status:</strong> <span className={`font-bold ${
+                                details.status === 'approved' ? 'text-green-400' :
+                                details.status === 'pending' ? 'text-yellow-400' :
+                                details.status === 'cancelled' ? 'text-red-400' : ''
+                            }`}>{details.status}</span></p>
+                        </div>
+                        <div className="bg-gray-700 p-5 rounded-lg">
+                            <h3 className="text-xl font-semibold flex items-center space-x-2 mb-3 text-orange-400"><Briefcase size={20}/>Booked Items</h3>
+                            {details.booked_items.map(item => (
+                                <div key={item.item_id} className="flex items-center space-x-3 bg-gray-600 p-2.5 rounded-md mb-2">
+                                    {item.type === 'flight' && <Plane size={18} />}
+                                    {item.type === 'hotel' && <Hotel size={18} />}
+                                    {item.type === 'activity' && <Activity size={18} />}
+                                    <span>{item.title || `${item.flight_info.airline} ${item.flight_info.flight_number}`}</span>
                                 </div>
-                                <div className="modal-section">
-                                    <h3 className="section-title"><Briefcase size={20}/>Booked Items</h3>
-                                    {details.booked_items.map(item => (
-                                        <div key={item.item_id} className="item-card">
-                                            {item.type === 'flight' && <Plane size={18} />}
-                                            {item.type === 'hotel' && <Hotel size={18} />}
-                                            {item.type === 'activity' && <Activity size={18} />}
-                                            <span>{item.title || `${item.flight_info.airline} ${item.flight_info.flight_number}`}</span>
-                                        </div>
-                                    ))}
-                                </div>
-                                {details.booked_items.filter(i => i.type === 'flight').map(flight => (
-                                    <div key={flight.item_id} className="modal-section">
-                                        <h3 className="section-title"><PlaneTakeoff size={20}/>Boarding Passes</h3>
-                                        {flight.segments.map(segment => (
-                                            <BoardingPass key={segment.segment_id} segment={segment} passenger={{ name: flight.passenger_name }} travelDate={details.travel_date} />
-                                        ))}
-                                    </div>
+                            ))}
+                        </div>
+                        {details.booked_items.filter(i => i.type === 'flight').map(flight => (
+                            <div key={flight.item_id} className="bg-gray-700 p-5 rounded-lg">
+                                <h3 className="text-xl font-semibold flex items-center space-x-2 mb-3 text-orange-400"><PlaneTakeoff size={20}/>Boarding Passes</h3>
+                                {flight.segments.map(segment => (
+                                    <BoardingPass key={segment.segment_id} segment={segment} passenger={{ name: flight.passenger_name }} travelDate={details.travel_date} />
                                 ))}
                             </div>
-                        </>
-                    )}
-                </motion.div>
-            </motion.div>
-        </AnimatePresence>
+                        ))}
+                    </div>
+                </div>
+            )}
+        </Modal>
     );
 };
 
@@ -171,11 +171,11 @@ export default function AdminBookingsPage() {
     ];
 
     return (
-        <div className="vibrant-admin-page">
-            <h1 className="page-title">Bookings Management</h1>
-            <div className="tabs-container">
+        <div className="p-8 animate-fadeIn">
+            {/* Removed the redundant h1 tag */}
+            <div className="flex space-x-2 mb-6 border-b-2 border-gray-700">
                 {TABS.map(tab => (
-                    <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`tab-btn ${activeTab === tab.id ? 'active' : ''}`}>
+                    <button key={tab.id} onClick={() => setActiveTab(tab.id)} className={`flex items-center space-x-2 px-4 py-3 font-semibold text-gray-400 border-b-3 border-transparent -mb-[2px] transition-all hover:text-gray-200 hover:border-orange-400 ${activeTab === tab.id ? 'text-orange-400 border-orange-400' : ''}`}>
                         <tab.icon size={18} /><span>{tab.label}</span>
                     </button>
                 ))}
@@ -191,17 +191,18 @@ export default function AdminBookingsPage() {
                     />
                 ))}
             </div>
-            <BookingDetailsModal 
-                isOpen={modalState.detailsOpen} 
-                onClose={() => setModalState({ ...modalState, detailsOpen: false })} 
-                bookingId={modalState.selectedId} 
+            <BookingDetailsModal
+                isOpen={modalState.detailsOpen}
+                onClose={() => setModalState({ ...modalState, detailsOpen: false })}
+                bookingId={modalState.selectedId}
+                maxWidthClass="max-w-4xl" // Added this prop
             />
-            <ConfirmationModal 
-                isOpen={modalState.confirmOpen} 
-                onClose={() => setModalState({ ...modalState, confirmOpen: false })} 
-                onConfirm={confirmAction} 
-                title="Confirm Action" 
-                message={`Are you sure you want to ${modalState.action?.type} this booking?`} 
+            <ConfirmationModal
+                isOpen={modalState.confirmOpen}
+                onClose={() => setModalState({ ...modalState, confirmOpen: false })}
+                onConfirm={confirmAction}
+                title="Confirm Action"
+                message={`Are you sure you want to ${modalState.action?.type} this booking?`}
             />
         </div>
     );

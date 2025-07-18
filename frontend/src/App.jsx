@@ -22,7 +22,7 @@ import AdminUsersPage from './pages/admin/AdminUsersPage.jsx';
 import AdminPostsPage from './pages/admin/AdminPostsPage.jsx';
 import AdminCommunitiesPage from './pages/admin/AdminCommunitiesPage.jsx';
 import AdminBookingsPage from './pages/admin/AdminBookingsPage.jsx';
-import AdminPackagesPage from './pages/admin/AdminPackagesPage.jsx'; // Correctly imported
+import AdminPackagesPage from './pages/admin/AdminPackagesPage.jsx';
 import AdminRoute from "./components/auth/AdminRoute.jsx";
 
 // --- Modals ---
@@ -59,14 +59,16 @@ export default function App() {
     useEffect(() => {
         const storedUser = localStorage.getItem("tripto_user");
         if (storedUser) {
-            try { 
-                setUser(JSON.parse(storedUser)); 
-            } catch (e) { 
+            try {
+                console.log("App.jsx useEffect - parsedUser from storage:", JSON.parse(storedUser));
+                setUser(JSON.parse(storedUser));
+            } catch (e) {
                 console.error("Failed to parse user from storage", e);
-                performLogout(); 
+                performLogout();
             }
         }
-        setLoading(false); // Auth check is complete
+        setLoading(false);
+        console.log("App.jsx useEffect - final loading state:", false);
     }, [performLogout]);
 
     const handleAuthSuccess = (loggedInUser, token) => {
@@ -76,7 +78,7 @@ export default function App() {
         setShowSignInModal(false);
         setShowSignUpModal(false);
     };
-    
+
     const handleAdminAuthSuccess = (adminUser, token) => {
         localStorage.setItem("tripto_user", JSON.stringify(adminUser));
         localStorage.setItem("tripto_token", token);
@@ -86,11 +88,13 @@ export default function App() {
     const handleSignOut = () => performLogout();
     const handleAdminSignOut = () => performLogout(true);
     const triggerSignIn = () => { setShowSignUpModal(false); setShowSignInModal(true); };
-    const triggerSignUp = () => { setShowSignInModal(false); setShowSignUpModal(true); };
+    const triggerSignUp = () => { setShowSignInModal(false); setShowSignInModal(true); };
+
+    console.log("App.jsx render - Current user state:", user, "loading state:", loading);
 
     return (
         <>
-            <Toaster 
+            <Toaster
                 position="top-right"
                 toastOptions={{
                     style: {
@@ -107,6 +111,7 @@ export default function App() {
 
                     {/* Protected Admin Studio routes */}
                     <Route path="/admin/*" element={<AdminRoute user={user} loading={loading} />}>
+                        {/* Corrected: This Route must be an opening/closing tag, not self-closing */}
                         <Route element={<AdminLayout onSignOut={handleAdminSignOut} user={user} />}>
                             <Route index element={<AdminDashboardPage />} />
                             <Route path="users" element={<AdminUsersPage />} />
@@ -114,16 +119,16 @@ export default function App() {
                             <Route path="communities" element={<AdminCommunitiesPage />} />
                             <Route path="bookings" element={<AdminBookingsPage />} />
                             <Route path="packages" element={<AdminPackagesPage />} />
-                        </Route>
+                        </Route> {/* Correct closing tag for AdminLayout's route */}
                     </Route>
 
                     {/* Main User-Facing Application Routes */}
-                    <Route 
+                    <Route
                         path="/*" // This will match every other path
                         element={
-                            <Layout 
-                                user={user} 
-                                onSignOut={handleSignOut} 
+                            <Layout
+                                user={user}
+                                onSignOut={handleSignOut}
                                 onTriggerSignIn={triggerSignIn}
                                 onTriggerSignUp={triggerSignUp}
                             />
@@ -143,7 +148,7 @@ export default function App() {
                         <Route path="*" element={<Navigate to="/" replace />} />
                     </Route>
                 </Routes>
-                
+
                 <BookingModal />
             </BookingProvider>
 

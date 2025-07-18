@@ -2,11 +2,9 @@ import React from 'react';
 import { Navigate, Outlet } from 'react-router-dom';
 import { Loader2 } from 'lucide-react';
 
-// ✅ FIX: Removed the incorrect import of a backend controller.
-// This component now correctly receives user and loading status as props.
 const AdminRoute = ({ user, loading }) => {
+    console.log("AdminRoute render - User:", user, "Loading:", loading, "User role:", user?.role); // Debug log
     
-    // 1. If the app is still checking for a user, show a loading spinner.
     if (loading) {
         return (
             <div className="h-screen flex items-center justify-center bg-gray-900">
@@ -14,9 +12,6 @@ const AdminRoute = ({ user, loading }) => {
             </div>
         );
     }
-
-    // 2. Once loading is complete, check if the user is an admin.
-    // If not, redirect them to the admin login page.
     return user && user.role === 'admin' ? <Outlet /> : <Navigate to="/admin/login" replace />;
 };
 
