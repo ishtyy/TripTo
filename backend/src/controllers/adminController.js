@@ -63,7 +63,7 @@ const getPaginatedData = async (req, res, { baseQuery, countQuery, searchColumns
     const params = [];
     let paramIndexOffset = 0;
 
-    const { status } = req.query; // New: Handle status filter for bookings
+    const { status } = req.query; // Handle status filter for bookings
     if (status && baseQuery.includes('booking')) {
         whereClause = `WHERE b.status = $1`;
         params.push(status);
@@ -74,7 +74,7 @@ const getPaginatedData = async (req, res, { baseQuery, countQuery, searchColumns
             params.push(`%${q}%`);
             return `${col} ILIKE $${(whereClause === '' ? 1 : params.length)}`;
         }).join(' OR ');
-
+        
         if (whereClause === '') {
             whereClause = `WHERE ${searchConditions}`;
         } else {
@@ -143,7 +143,7 @@ export const getBookings = (req, res) => getPaginatedData(req, res, {
     allowedSortBy: ['booking_id', 'user_id', 'user_username', 'booked_at', 'travel_date', 'status']
 });
 
-// New: Get comprehensive booking details for modal
+// Get comprehensive booking details for modal
 export const getBookingDetails = asyncHandler(async (req, res) => {
     const { bookingId } = req.params;
 
@@ -167,15 +167,55 @@ export const getBookingDetails = asyncHandler(async (req, res) => {
                     'type', bi_main.type,
                     'price', bi.price_at_booking,
                     'quantity', bi.quantity,
-                    -- Flight specific details (if type is 'flight')
+                    -- Passenger details from booking_item (these stay)
+                    'passenger_name', bi.passenger_name,
+                    'passenger_gender', bi.passenger_gender,
+                    'passenger_type', bi.passenger_type,
+                    -- Flight specific details from FLIGHT table (f)
+                    'seat_number', f.seat_number,    -- From flight table
+                    'gate', f.gate,                  -- From flight table
+                    'terminal', f.terminal,          -- From flight table
+                    'flight_class', f.flight_class,  -- From flight table
                     'flight_info', CASE WHEN bi_main.type = 'flight' THEN
                         json_build_object(
                             'airline', f.airline,
                             'flight_number', f.flight_number,
                             'departure_time', f.departure_time,
                             'arrival_time', f.arrival_time,
+                            'duration_minutes', f.duration_minutes, -- From flight table
                             'origin_name', origin_loc.location_name,
-                            'destination_name', dest_loc.location_name
+                            'origin_iata', origin_loc.iata_code,
+                            'destination_name', dest_loc.location_name,
+                            'destination_iata', dest_loc.iata_code
+                        )
+                    ELSE NULL END,
+                    -- Flight segments (for transits), linked by booking_id AND bookable_item_id
+                    'segments', CASE WHEN bi_main.type = 'flight' THEN
+                        (
+                            SELECT json_agg(
+                                jsonb_build_object(
+                                    'segment_id', fs.segment_id,
+                                    'segment_number', fs.segment_number,
+                                    'origin_name', fs_origin_loc.location_name,
+                                    'origin_iata', fs_origin_loc.iata_code,
+                                    'destination_name', fs_dest_loc.location_name,
+                                    'destination_iata', fs_dest_loc.iata_code,
+                                    'departure_time', fs.departure_time,
+                                    'arrival_time', fs.arrival_time,
+                                    'airline', fs.airline,
+                                    'flight_number', fs.flight_number,
+                                    'seat_number', fs.seat_number, -- From flight_segment
+                                    'gate', fs.gate,             -- From flight_segment
+                                    'terminal', fs.terminal,     -- From flight_segment
+                                    'flight_class', fs.flight_class, -- From flight_segment
+                                    'is_transit', fs.is_transit,
+                                    'transit_duration_minutes', fs.transit_duration_minutes
+                                ) ORDER BY fs.segment_number
+                            )
+                            FROM flight_segment fs
+                            JOIN locations fs_origin_loc ON fs.origin_id = fs_origin_loc.location_id
+                            JOIN locations fs_dest_loc ON fs.destination_id = fs_dest_loc.location_id
+                            WHERE fs.booking_id = b.booking_id AND fs.bookable_item_id = bi.bookable_item_id
                         )
                     ELSE NULL END
                 )

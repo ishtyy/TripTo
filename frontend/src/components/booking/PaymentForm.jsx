@@ -6,25 +6,25 @@ export default function PaymentForm() {
     const { confirmBooking } = useBooking();
     const [isProcessing, setIsProcessing] = useState(false);
 
-    // This function simulates a payment request
-    const handlePayment = (e) => {
+    const handlePayment = async (e) => { // Made async to await confirmBooking
         e.preventDefault();
         setIsProcessing(true);
         
-        // Simulate a network delay for payment processing
-        setTimeout(() => {
-            // After the "payment" is successful, we call confirmBooking
-            // which saves the data to the database and moves to the final step.
-            confirmBooking();
+        try {
+            await confirmBooking(); // Call confirmBooking which handles API call and state transition
+        } catch (error) {
+            // Error handling is now primarily in confirmBooking in context
+            console.error("Payment form: confirmBooking failed", error);
+        } finally {
             setIsProcessing(false);
-        }, 2000); // 2-second delay
+        }
     };
 
     return (
         <div className="animate-fade-in-up">
             <h2 className="text-2xl font-bold text-white mb-6">Secure Payment</h2>
             <form onSubmit={handlePayment} className="space-y-4 max-w-lg">
-                 <div>
+                <div>
                     <label className="block text-sm font-medium text-gray-300">Card Number</label>
                     <input 
                         placeholder="0000 0000 0000 0000" 
@@ -51,11 +51,11 @@ export default function PaymentForm() {
                     </div>
                 </div>
                 
-                 <button 
+                <button 
                     type="submit" 
                     disabled={isProcessing} 
                     className="w-full md:w-auto px-8 py-3 bg-green-600 hover:bg-green-700 text-white rounded-lg font-semibold flex items-center justify-center gap-2 transition-opacity disabled:opacity-50"
-                 >
+                >
                     {isProcessing ? <Loader2 className="animate-spin" /> : <Lock size={16} />}
                     {isProcessing ? 'Processing...' : 'Pay Now'}
                 </button>

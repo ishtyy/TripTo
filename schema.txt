@@ -425,6 +425,48 @@ CREATE TABLE public.community_post_votes (
 ALTER TABLE comment
 ADD COLUMN created_at TIMESTAMP WITH TIME ZONE DEFAULT NOW();
 
+CREATE TABLE public.flight_segment (
+    segment_id UUID NOT NULL DEFAULT gen_random_uuid(),
+    booking_id UUID NOT NULL,          -- Part of composite FK to booking_item
+    bookable_item_id UUID NOT NULL,   -- Part of composite FK to booking_item
+
+    segment_number INTEGER NOT NULL,  -- Order of segment in a multi-leg journey
+    origin_id UUID NOT NULL,
+    destination_id UUID NOT NULL,
+    departure_time TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    arrival_time TIMESTAMP WITHOUT TIME ZONE NOT NULL,
+    airline TEXT NULL,
+    flight_number TEXT NULL,
+    seat_number TEXT NULL,            -- Specific to this segment
+    gate TEXT NULL,
+    terminal TEXT NULL,
+    flight_class TEXT NULL,           -- Specific to this segment
+    is_transit BOOLEAN DEFAULT FALSE, -- Is this segment a layover point?
+    transit_duration_minutes INTEGER NULL, -- Duration of layover after this segment
+
+    CONSTRAINT flight_segment_pkey PRIMARY KEY (segment_id),
+
+    -- Foreign Key referencing the COMPOSITE PRIMARY KEY of booking_item
+    CONSTRAINT fk_flight_segment_booking_item FOREIGN KEY (booking_id, bookable_item_id)
+        REFERENCES public.booking_item(booking_id, bookable_item_id) ON DELETE CASCADE,
+
+    CONSTRAINT flight_segment_origin_id_fkey FOREIGN KEY (origin_id) REFERENCES public.locations(location_id),
+    CONSTRAINT flight_segment_destination_id_fkey FOREIGN KEY (destination_id) REFERENCES public.locations(location_id)
+);
+
+
+ALTER TABLE public.booking_item
+ADD COLUMN passenger_name TEXT NULL,
+ADD COLUMN passenger_gender TEXT NULL,
+ADD COLUMN passenger_type TEXT NULL;
+
+ALTER TABLE public.flight
+ADD COLUMN duration_minutes INTEGER NULL;
+
+ALTER TABLE public.locations
+ADD COLUMN iata_code TEXT NULL UNIQUE;
+
+
 -- Option 1: Add directly to flight table (if these are properties of the flight itself)
 ALTER TABLE public.flight
 ADD COLUMN seat_number TEXT NULL,
@@ -441,3 +483,20 @@ ADD COLUMN flight_class TEXT NULL; -- E.g., 'Economy', 'Business'
 
 -- You'd then need to update your backend query in adminController.js
 -- to select these new fields if you add them to the database.
+
+-- SQL to remove unnecessary columns from public.booking_item
+ALTER TABLE public.booking_item
+DROP COLUMN IF EXISTS seat_number,
+DROP COLUMN IF EXISTS gate,
+DROP COLUMN IF EXISTS terminal,
+DROP COLUMN IF EXISTS flight_class;
+
+-- SQL to add flight_class column to public.flight
+ALTER TABLE public.flight
+ADD COLUMN flight_class TEXT NULL;
+
+
+-- Add a default UUID generator to flight_id
+ALTER TABLE public.flight
+ALTER COLUMN flight_id SET DEFAULT gen_random_uuid();
+

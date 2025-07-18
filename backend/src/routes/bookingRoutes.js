@@ -1,12 +1,14 @@
 import express from 'express';
 import {
-  createBooking,
-  getBookingById,
-  getBookingsByUser,
-  getAllBookings,
-  getOrCreateItinerary,
-  addFlightToItinerary,
-  getMyBookingHistory // ✅ FIX: This function is now correctly imported
+    createBooking,
+    getBookingById,
+    getBookingsByUser,
+    getAllBookings,
+    getOrCreateItinerary,
+    addFlightToItinerary,
+    getMyBookingHistory,
+    removeFlightFromItinerary, // Export the new remove function
+    updateItineraryItemDetails // Export the new update function
 } from '../controllers/bookingController.js';
 
 import { checkJwtMiddleware, requireRole } from '../middleware/authMiddleware.js';
@@ -16,6 +18,8 @@ const router = express.Router();
 // Itinerary Routes
 router.route('/itinerary').get(checkJwtMiddleware, getOrCreateItinerary);
 router.route('/itinerary/add').post(checkJwtMiddleware, addFlightToItinerary);
+router.route('/itinerary/remove').post(checkJwtMiddleware, removeFlightFromItinerary);
+router.route('/itinerary/update-details').post(checkJwtMiddleware, updateItineraryItemDetails); // NEW: Route for updating itinerary item details
 
 // Main Booking Routes
 router.route('/').post(checkJwtMiddleware, createBooking);
