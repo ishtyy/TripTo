@@ -1,7 +1,7 @@
 // src/pages/admin/AdminBookingsPage.jsx
 
 import React, { useState, useEffect } from 'react';
-import { DynamicDataTable } from '../../components/Admin/DynamicDataTable';
+import { DynamicDataTable } from '../../components/admin/DynamicDataTable';
 import api from '../../services/api';
 import {
     Eye, CheckCircle, XCircle, Trash2, PlaneTakeoff, Hotel,
@@ -103,16 +103,20 @@ const BookingDetailsModal = ({ isOpen, onClose, bookingId, maxWidthClass }) => {
                                     {item.type === 'flight' && <Plane size={18} />}
                                     {item.type === 'hotel' && <Hotel size={18} />}
                                     {item.type === 'activity' && <Activity size={18} />}
-                                    <span>{item.title || `${item.flight_info.airline} ${item.flight_info.flight_number}`}</span>
+                                    {item.type === 'package' && <Briefcase size={18} />}
+                                    <span>{item.title || (item.flight_info ? `${item.flight_info.airline} ${item.flight_info.flight_number}` : 'Item')}</span>
                                 </div>
                             ))}
                         </div>
                         {details.booked_items.filter(i => i.type === 'flight').map(flight => (
                             <div key={flight.item_id} className="bg-gray-700 p-5 rounded-lg">
                                 <h3 className="text-xl font-semibold flex items-center space-x-2 mb-3 text-orange-400"><PlaneTakeoff size={20}/>Boarding Passes</h3>
-                                {flight.segments.map(segment => (
+                                {flight.segments && flight.segments.map(segment => (
                                     <BoardingPass key={segment.segment_id} segment={segment} passenger={{ name: flight.passenger_name }} travelDate={details.travel_date} />
                                 ))}
+                                {!flight.segments && (
+                                    <p className="text-gray-400">No flight segments available</p>
+                                )}
                             </div>
                         ))}
                     </div>
@@ -146,11 +150,25 @@ export default function AdminBookingsPage() {
             if (type === 'delete') {
                 await api.delete(`/admin/bookings/${id}`);
             } else {
-                await api.put(`/admin/bookings/${id}/status`, { status: type });
+                // Convert action type to proper status value
+                const statusMap = {
+                    'approve': 'approved',
+                    'cancel': 'cancelled'
+                };
+                const status = statusMap[type] || type;
+                await api.put(`/admin/bookings/${id}/status`, { status });
             }
-            toast.success(`Booking ${type}d successfully!`);
+            // Create proper message for toast
+            const messageMap = {
+                'approve': 'approved',
+                'cancel': 'cancelled',
+                'delete': 'deleted'
+            };
+            const statusMessage = messageMap[type] || `${type}d`;
+            toast.success(`Booking ${statusMessage} successfully!`);
             if (refresh) refresh();
         } catch (err) {
+            console.error('Action error:', err);
             toast.error(err.response?.data?.message || `Failed to ${type} booking.`);
         } finally {
             setModalState({ ...modalState, confirmOpen: false, action: null });

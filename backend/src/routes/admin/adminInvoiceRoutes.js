@@ -3,11 +3,11 @@ import {
     listAllInvoices,
     listAllInvoicesWithFilters
 } from '../../controllers/invoiceController.js';
-import { checkJwtMiddleware, requireRole } from '../../middleware/authMiddleware.js';
 
 const router = express.Router();
 
-router.get('/', checkJwtMiddleware, requireRole('admin'), listAllInvoices);
-router.get('/filters', checkJwtMiddleware, requireRole('admin'), listAllInvoicesWithFilters);
+// Note: Auth middleware already applied at parent router level in adminRoutes.js
+router.get('/', listAllInvoices);
+router.get('/filters', listAllInvoicesWithFilters);
 
 export default router;

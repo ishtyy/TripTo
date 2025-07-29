@@ -121,7 +121,9 @@ export const DynamicDataTable = ({ endpoint, columns, searchPlaceholder, itemKey
                                     <td key={`${item[itemKey]}-${col.accessor}`} className="px-6 py-4">
                                         {col.type === 'date'
                                             ? item[col.accessor] ? new Date(item[col.accessor]).toLocaleDateString() : 'N/A'
-                                            : item[col.accessor]
+                                            : col.type === 'currency'
+                                            ? item[col.accessor] ? `$${parseFloat(item[col.accessor]).toFixed(2)}` : 'N/A'
+                                            : item[col.accessor] || 'N/A'
                                         }
                                     </td>
                                 ))}

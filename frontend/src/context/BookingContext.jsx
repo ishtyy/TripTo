@@ -94,6 +94,10 @@ export const BookingProvider = ({ children }) => {
             const response = await api.post('/bookings/itinerary/add', { flight });
             if (response.data && response.data.itineraryId) {
                 setActiveItineraryId(response.data.itineraryId);
+                console.log("Itinerary ID set:", response.data.itineraryId);
+            } else {
+                console.warn("No itinerary ID returned from server:", response.data);
+                toast.warning("Flight added but itinerary setup may be incomplete. Please refresh if you encounter issues.");
             }
             setCart(prevCart => {
                 const newCart = [...prevCart, flight];
@@ -143,9 +147,21 @@ export const BookingProvider = ({ children }) => {
 
     const addPassengerAndSeatInfo = useCallback(async (flightId, passengerData, seatNumber) => {
         if (!activeItineraryId) {
-            toast.error("Itinerary not loaded. Please try again.");
-            console.error("Itinerary ID is missing for update details.");
-            return;
+            // Try to refresh the itinerary first
+            try {
+                const response = await api.get('/bookings/itinerary');
+                if (response.data && response.data.itineraryId) {
+                    setActiveItineraryId(response.data.itineraryId);
+                } else {
+                    toast.error("No active itinerary found. Please add flights to your cart first.");
+                    console.error("Itinerary ID is missing for update details. No active itinerary found.");
+                    return;
+                }
+            } catch (error) {
+                toast.error("Failed to load itinerary. Please try again.");
+                console.error("Itinerary ID is missing for update details. Failed to fetch itinerary:", error);
+                return;
+            }
         }
 
         try {
@@ -172,8 +188,15 @@ export const BookingProvider = ({ children }) => {
                 selectedSeat: seatNumber
             };
 
+            // Use the potentially refreshed activeItineraryId
+            const itineraryIdToUse = activeItineraryId || (await api.get('/bookings/itinerary')).data?.itineraryId;
+            
+            if (!itineraryIdToUse) {
+                throw new Error("Unable to determine itinerary ID for update.");
+            }
+
             await api.post('/bookings/itinerary/update-details', {
-                itineraryId: activeItineraryId,
+                itineraryId: itineraryIdToUse,
                 bookableItemId: flightId,
                 updatedFlightDetails: updatedFlightDetails
             });

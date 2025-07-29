@@ -13,10 +13,12 @@ import userRoutes from './routes/userRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import communityRoutes from './routes/communityRoutes.js';
 import locationRoutes from './routes/locationRoutes.js';
-import adminRoutes from './routes/adminRoutes.js';
+import adminRoutes from './routes/adminRoutes.js'; // Enabled
 import flightRoutes from './routes/flightRoutes.js';
 import communityPostRoutes from './routes/communityPostRoutes.js';
 import messageRoutes from './routes/messageRoutes.js';
+import packageRoutes from './routes/packageRoutes.js'; // Enabled
+import couponRoutes from './routes/couponRoutes.js';
 
 const app = express();
 
@@ -35,10 +37,12 @@ app.use('/api/users', userRoutes);
 app.use('/api/auth', authRoutes);
 app.use('/api/communities', communityRoutes);
 app.use('/api/locations', locationRoutes);
-app.use('/api/admin', adminRoutes);
+app.use('/api/admin', adminRoutes); // Enabled
 app.use('/api/flights', flightRoutes);
 app.use('/api/community-posts', communityPostRoutes);
 app.use('/api/messages', messageRoutes);
+app.use('/api/packages', packageRoutes); // Enabled
+app.use('/api/coupons', couponRoutes);
 
 // --- Root Endpoint and Error Handlers ---
 app.get('/', (_req, res) => {

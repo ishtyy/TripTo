@@ -2,7 +2,7 @@ import { useEffect, useState } from 'react';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import api from '../services/api';
 import toast from 'react-hot-toast';
-import { Edit, Users, Loader2, BookCheck, MapPin, UserPlus, UserCheck, MessageSquare, Newspaper } from 'lucide-react';
+import { Edit, Users, Loader2, BookCheck, MapPin, UserPlus, UserCheck, MessageSquare, Newspaper, Gift } from 'lucide-react';
 
 import BookingStatementModal from '../components/booking/BookingStatementModal';
 import BlogPostCard from '../components/blog/BlogPostCard';
@@ -32,7 +32,7 @@ const BookingHistoryCard = ({ booking, onViewDetails }) => (
     </button>
 );
 
-const ProfileTab = ({ label, icon: Icon, isActive, onClick }) => (
+const ProfileTab = ({ label, icon: Icon, isActive, onClick, badge = null }) => (
     <button
         onClick={onClick}
         className={`flex items-center gap-2 px-4 py-2.5 font-semibold text-sm rounded-t-lg border-b-2 transition-colors ${
@@ -43,6 +43,11 @@ const ProfileTab = ({ label, icon: Icon, isActive, onClick }) => (
     >
         <Icon size={16} />
         {label}
+        {badge !== null && badge > 0 && (
+            <span className="bg-purple-600 text-white text-xs px-2 py-1 rounded-full min-w-[20px] h-5 flex items-center justify-center">
+                {badge}
+            </span>
+        )}
     </button>
 );
 
@@ -56,6 +61,7 @@ export default function ProfilePage({ loggedInUser, onViewPost, onCascade, onTri
   const [userPosts, setUserPosts] = useState([]);
   const [bookingHistory, setBookingHistory] = useState([]);
   const [joinedCommunities, setJoinedCommunities] = useState([]);
+  const [userCoupons, setUserCoupons] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [bookingToView, setBookingToView] = useState(null);
@@ -79,6 +85,7 @@ export default function ProfilePage({ loggedInUser, onViewPost, onCascade, onTri
             if (isOwnProfile) {
                 promises.push(api.get('/bookings/my-history'));
                 promises.push(api.get(`/users/${userId}/communities`));
+                promises.push(api.get('/coupons/my-coupons'));
             }
             const responses = await Promise.all(promises);
             
@@ -91,6 +98,9 @@ export default function ProfilePage({ loggedInUser, onViewPost, onCascade, onTri
             if (isOwnProfile) {
                 setBookingHistory(responses[2].data || []);
                 setJoinedCommunities(responses[3].data.communities || []);
+                if (responses[4] && responses[4].data.success) {
+                    setUserCoupons(responses[4].data.coupons || []);
+                }
             }
         } catch (err) {
             setError("Failed to load profile. This user may not exist.");
@@ -171,6 +181,7 @@ export default function ProfilePage({ loggedInUser, onViewPost, onCascade, onTri
                     <>
                         <ProfileTab label="My Bookings" icon={BookCheck} isActive={activeTab === 'bookings'} onClick={() => setActiveTab('bookings')} />
                         <ProfileTab label="My Communities" icon={Users} isActive={activeTab === 'communities'} onClick={() => setActiveTab('communities')} />
+                        <ProfileTab label="My Coupons" icon={Gift} isActive={activeTab === 'coupons'} onClick={() => setActiveTab('coupons')} badge={userCoupons.filter(c => c.current_status === 'available').length} />
                     </>
                 )}
             </div>
@@ -201,6 +212,76 @@ export default function ProfilePage({ loggedInUser, onViewPost, onCascade, onTri
                                 </Link>
                             ))
                         ) : <div className="text-center py-10 bg-gray-900/50 rounded-xl border border-gray-800 md:col-span-3"><p className="text-gray-400">You haven't joined any communities yet.</p></div>}
+                    </section>
+                )}
+                
+                {activeTab === 'coupons' && isOwnProfile && (
+                    <section className="space-y-4">
+                        {userCoupons.length > 0 ? (
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                {userCoupons.map(coupon => (
+                                    <div key={coupon.coupon_id} className="bg-gray-900/80 border border-gray-700 rounded-xl p-6 hover:border-purple-500/50 transition-all">
+                                        <div className="flex justify-between items-start mb-4">
+                                            <div>
+                                                <h3 className="text-lg font-semibold text-purple-300">{coupon.coupon_code}</h3>
+                                                <p className="text-gray-300 text-sm">{coupon.title}</p>
+                                            </div>
+                                            <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                                coupon.current_status === 'available' ? 'bg-green-900/50 text-green-300 border border-green-600/30' :
+                                                coupon.current_status === 'expired' ? 'bg-red-900/50 text-red-300 border border-red-600/30' :
+                                                coupon.current_status === 'used' ? 'bg-gray-700/50 text-gray-400 border border-gray-600/30' :
+                                                'bg-yellow-900/50 text-yellow-300 border border-yellow-600/30'
+                                            }`}>
+                                                {coupon.current_status}
+                                            </div>
+                                        </div>
+                                        
+                                        <div className="space-y-2 text-sm text-gray-400">
+                                            <p>
+                                                <strong className="text-gray-300">Discount:</strong>{' '}
+                                                {coupon.discount_type === 'percentage' 
+                                                    ? `${coupon.discount_value}% off` 
+                                                    : `$${coupon.discount_value} off`}
+                                                {coupon.max_discount_amount && ` (max $${coupon.max_discount_amount})`}
+                                            </p>
+                                            <p>
+                                                <strong className="text-gray-300">Valid until:</strong>{' '}
+                                                {new Date(coupon.valid_until).toLocaleDateString()}
+                                            </p>
+                                            <p>
+                                                <strong className="text-gray-300">Usage:</strong>{' '}
+                                                {coupon.times_used} / {coupon.usage_limit || '∞'}
+                                            </p>
+                                            <p>
+                                                <strong className="text-gray-300">Applicable to:</strong>{' '}
+                                                {coupon.applicable_to_flights && coupon.applicable_to_packages ? 'Flights & Packages' :
+                                                 coupon.applicable_to_flights ? 'Flights only' :
+                                                 coupon.applicable_to_packages ? 'Packages only' :
+                                                 'All bookings'}
+                                            </p>
+                                            {coupon.description && (
+                                                <p className="text-gray-500 text-xs mt-2">{coupon.description}</p>
+                                            )}
+                                        </div>
+                                    </div>
+                                ))}
+                            </div>
+                        ) : (
+                            <div className="text-center py-12 bg-gray-900/50 rounded-xl border border-gray-800">
+                                <Gift size={64} className="mx-auto mb-4 text-gray-600" />
+                                <h3 className="text-xl font-semibold text-gray-300 mb-2">No Coupons Yet</h3>
+                                <p className="text-gray-400 mb-4">
+                                    You don't have any coupons yet. Book packages to earn flight discount coupons!
+                                </p>
+                                <Link 
+                                    to="/book-trip" 
+                                    className="inline-flex items-center gap-2 px-6 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold transition-colors"
+                                >
+                                    <Gift size={20} />
+                                    Browse Packages
+                                </Link>
+                            </div>
+                        )}
                     </section>
                 )}
             </div>

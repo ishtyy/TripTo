@@ -48,20 +48,52 @@ export const getCommunityById = asyncHandler(async (req, res) => {
 });
 
 export const createCommunity = asyncHandler(async (req, res) => {
-    const { community_name, description, location_id } = req.body;
+    const { name, community_name, description, location_id, latitude, longitude } = req.body;
     // ✅ FIX: Using the correct user ID from the authentication middleware
     const creator_user_id = req.user.user_id;
 
-    if (!community_name || !description || !location_id) {
+    // Handle both old format (community_name, location_id) and new format (name, latitude, longitude)
+    const communityName = community_name || name;
+    const communityDescription = description || `Community for ${communityName}`;
+
+    if (!communityName) {
         res.status(400);
-        throw new Error('Community name, description, and location_id are required.');
+        throw new Error('Community name is required.');
+    }
+
+    // If latitude/longitude provided, create location; otherwise use existing location_id
+    if (latitude !== undefined && longitude !== undefined && !location_id) {
+        if (typeof latitude !== 'number' || typeof longitude !== 'number') {
+            res.status(400);
+            throw new Error('Latitude and longitude must be valid numbers.');
+        }
+    } else if (!location_id) {
+        res.status(400);
+        throw new Error('Either location_id or latitude/longitude coordinates are required.');
     }
 
     const now = new Date();
     const result = await db.tx(async t => {
+        let finalLocationId = location_id;
+        
+        // Create location if coordinates provided
+        if (latitude !== undefined && longitude !== undefined && !location_id) {
+            const locationResult = await t.one(
+                `INSERT INTO locations (location_name, country, coordinates, description) 
+                 VALUES ($1, $2, ST_GeogFromText($3), $4) RETURNING location_id`,
+                [
+                    `${communityName} Area`,
+                    'Unknown', // Default country - can be enhanced with reverse geocoding
+                    `SRID=4326;POINT(${longitude} ${latitude})`,
+                    `Location for ${communityName} community`
+                ]
+            );
+            finalLocationId = locationResult.location_id;
+        }
+
         const community = await t.one(
             `INSERT INTO community (community_name, description, location_id, created_at) VALUES ($1, $2, $3, $4) RETURNING *`,
-            [community_name.trim(), description.trim(), location_id, now]
+            [communityName.trim(), communityDescription.trim(), finalLocationId, now]
         );
         await t.none(
             `INSERT INTO community_membership (community_id, user_id, role, joined_at) VALUES ($1, $2, 'admin', $3)`,

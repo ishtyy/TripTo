@@ -15,7 +15,6 @@ export const register = asyncHandler(async (req, res) => {
 
     const password_hash = await bcrypt.hash(password, 10);
 
-    // ✅ FIX: Correctly uses your 'password' column name from the schema.
     const insertQuery = `
         INSERT INTO user_profiles (username, email, password, role, created_at)
         VALUES ($1, $2, $3, 'user', $4)

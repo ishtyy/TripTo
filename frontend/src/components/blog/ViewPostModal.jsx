@@ -23,7 +23,6 @@ const Comment = ({ comment }) => (
 );
 
 export default function ViewPostModal({ open, onClose, post, loggedInUser, onTriggerSignIn, onCascade }) {
-    // ✅ FIX: The modal now has its own state for votes, initialized safely.
     const [localUpvotes, setLocalUpvotes] = useState(0);
     const [localDownvotes, setLocalDownvotes] = useState(0);
     const [userVote, setUserVote] = useState(null);

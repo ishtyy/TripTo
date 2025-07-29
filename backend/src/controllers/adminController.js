@@ -132,144 +132,249 @@ export const getCommunities = (req, res) => getPaginatedData(req, res, {
 });
 
 export const getBookings = (req, res) => getPaginatedData(req, res, {
-    baseQuery: `SELECT b.booking_id, b.user_id, b.booked_at, b.travel_date, b.status, up.username as user_username
+    baseQuery: `SELECT DISTINCT b.booking_id, b.user_id, b.booked_at, b.booked_at as created_at, b.travel_date, b.status, up.username as user_username
                 FROM booking b
                 JOIN user_profiles up ON b.user_id = up.user_id`,
-    countQuery: `SELECT COUNT(*)
+    countQuery: `SELECT COUNT(DISTINCT b.booking_id)
                  FROM booking b
                  JOIN user_profiles up ON b.user_id = up.user_id`,
     searchColumns: ['b.booking_id::text', 'up.username', 'b.status'],
     defaultSortBy: 'booked_at',
-    allowedSortBy: ['booking_id', 'user_id', 'user_username', 'booked_at', 'travel_date', 'status']
+    allowedSortBy: ['booking_id', 'user_id', 'user_username', 'booked_at', 'created_at', 'travel_date', 'status']
 });
 
-// Get comprehensive booking details for modal
+// Get comprehensive booking details for modal (Revised to use multiple queries for clarity and reliability)
 export const getBookingDetails = asyncHandler(async (req, res) => {
     const { bookingId } = req.params;
 
-    const bookingDetails = await db.oneOrNone(`
+    // 1. Get basic booking and user info
+    const basicBooking = await db.oneOrNone(`
         SELECT
             b.booking_id,
             b.booked_at,
             b.travel_date,
             b.status,
-            json_build_object(
-                'user_id', up.user_id,
-                'username', up.username,
-                'email', up.email,
-                'profile_picture_url', up.profile_picture_url
-            ) AS user_info,
-            json_agg(
-                DISTINCT jsonb_build_object(
-                    'item_id', bi.bookable_item_id,
-                    'title', bi_main.title,
-                    'description', bi_main.description,
-                    'type', bi_main.type,
-                    'price', bi.price_at_booking,
-                    'quantity', bi.quantity,
-                    -- Passenger details from booking_item (these stay)
-                    'passenger_name', bi.passenger_name,
-                    'passenger_gender', bi.passenger_gender,
-                    'passenger_type', bi.passenger_type,
-                    -- Flight specific details from FLIGHT table (f)
-                    'seat_number', f.seat_number,    -- From flight table
-                    'gate', f.gate,                  -- From flight table
-                    'terminal', f.terminal,          -- From flight table
-                    'flight_class', f.flight_class,  -- From flight table
-                    'flight_info', CASE WHEN bi_main.type = 'flight' THEN
-                        json_build_object(
-                            'airline', f.airline,
-                            'flight_number', f.flight_number,
-                            'departure_time', f.departure_time,
-                            'arrival_time', f.arrival_time,
-                            'duration_minutes', f.duration_minutes, -- From flight table
-                            'origin_name', origin_loc.location_name,
-                            'origin_iata', origin_loc.iata_code,
-                            'destination_name', dest_loc.location_name,
-                            'destination_iata', dest_loc.iata_code
-                        )
-                    ELSE NULL END,
-                    -- Flight segments (for transits), linked by booking_id AND bookable_item_id
-                    'segments', CASE WHEN bi_main.type = 'flight' THEN
-                        (
-                            SELECT json_agg(
-                                jsonb_build_object(
-                                    'segment_id', fs.segment_id,
-                                    'segment_number', fs.segment_number,
-                                    'origin_name', fs_origin_loc.location_name,
-                                    'origin_iata', fs_origin_loc.iata_code,
-                                    'destination_name', fs_dest_loc.location_name,
-                                    'destination_iata', fs_dest_loc.iata_code,
-                                    'departure_time', fs.departure_time,
-                                    'arrival_time', fs.arrival_time,
-                                    'airline', fs.airline,
-                                    'flight_number', fs.flight_number,
-                                    'seat_number', fs.seat_number, -- From flight_segment
-                                    'gate', fs.gate,             -- From flight_segment
-                                    'terminal', fs.terminal,     -- From flight_segment
-                                    'flight_class', fs.flight_class, -- From flight_segment
-                                    'is_transit', fs.is_transit,
-                                    'transit_duration_minutes', fs.transit_duration_minutes
-                                ) ORDER BY fs.segment_number
-                            )
-                            FROM flight_segment fs
-                            JOIN locations fs_origin_loc ON fs.origin_id = fs_origin_loc.location_id
-                            JOIN locations fs_dest_loc ON fs.destination_id = fs_dest_loc.location_id
-                            WHERE fs.booking_id = b.booking_id AND fs.bookable_item_id = bi.bookable_item_id
-                        )
-                    ELSE NULL END
-                )
-            ) FILTER (WHERE bi.booking_id IS NOT NULL) AS booked_items,
-            json_build_object(
-                'invoice_id', i.invoice_id,
-                'issued_at', i.issued_at,
-                'overall_status', i.overall_status,
-                'payments', (
-                    SELECT json_agg(
-                        jsonb_build_object(
-                            'payment_id', p.payment_id,
-                            'amount', p.amount,
-                            'payment_date', p.payment_date,
-                            'method', p.method,
-                            'status', p.status
-                        )
-                    ) FILTER (WHERE p.payment_id IS NOT NULL)
-                    FROM invoice_item ii_pay
-                    LEFT JOIN payment p ON p.invoice_item_id = ii_pay.invoice_item_id
-                    WHERE ii_pay.invoice_id = i.invoice_id
-                ),
-                'invoice_items_summary', (
-                    SELECT json_agg(
-                        jsonb_build_object(
-                            'item_id', ii_summary.bookable_item_id,
-                            'base_price', ii_summary.base_price,
-                            'discount', ii_summary.discount,
-                            'final_price', ii_summary.final_price,
-                            'payment_status', ii_summary.payment_status
-                        )
-                    ) FILTER (WHERE ii_summary.invoice_item_id IS NOT NULL)
-                    FROM invoice_item ii_summary
-                    WHERE ii_summary.invoice_id = i.invoice_id
-                )
-            ) AS invoice_info
+            b.user_id,
+            up.username,
+            up.email,
+            up.profile_picture_url
         FROM booking b
         JOIN user_profiles up ON b.user_id = up.user_id
-        LEFT JOIN booking_item bi ON b.booking_id = bi.booking_id
-        LEFT JOIN bookable_item bi_main ON bi.bookable_item_id = bi_main.bookable_item_id
-        LEFT JOIN flight f ON bi_main.bookable_item_id = f.flight_id AND bi_main.type = 'flight'
-        LEFT JOIN locations origin_loc ON f.origin_id = origin_loc.location_id
-        LEFT JOIN locations dest_loc ON f.destination_id = dest_loc.location_id
-        LEFT JOIN invoice i ON b.booking_id = i.booking_id
         WHERE b.booking_id = $1
-        GROUP BY b.booking_id, up.user_id, i.invoice_id -- Group by all non-aggregated columns
     `, [bookingId]);
 
-    if (!bookingDetails) {
+    if (!basicBooking) {
         res.status(404);
         throw new Error('Booking not found.');
     }
 
-    res.json(bookingDetails);
+    // 2. Get all passenger details for this booking
+    const passengerDetails = await db.any(`
+        SELECT
+            passenger_detail_id,
+            full_name,
+            date_of_birth,
+            passport_number,
+            nationality,
+            email,
+            phone,
+            created_at,
+            updated_at
+        FROM passenger_detail
+        WHERE booking_id = $1
+    `, [bookingId]);
+
+    // 3. Get booking items with their main bookable_item details
+    const rawBookedItems = await db.any(`
+        SELECT
+            bi_item.bookable_item_id,
+            bi_item.quantity,
+            bi_item.price_at_booking,
+            bi_main.title,
+            bi_main.description,
+            bi_main.type
+        FROM booking_item bi_item
+        JOIN bookable_item bi_main ON bi_item.bookable_item_id = bi_main.bookable_item_id
+        WHERE bi_item.booking_id = $1
+    `, [bookingId]);
+
+    // 4. Fetch specific details for each booked item based on its type
+    const bookedItemsWithDetails = await Promise.all(rawBookedItems.map(async (item) => {
+        let itemDetails = { ...item }; // Start with basic item info
+
+        if (item.type === 'package') {
+            const packageInfo = await db.oneOrNone(`
+                SELECT
+                    tp.destination_id,
+                    l.location_name as destination_name,
+                    l.country,
+                    tp.start_date,
+                    tp.end_date,
+                    tp.group_size
+                FROM travel_package tp
+                JOIN locations l ON tp.destination_id = l.location_id
+                WHERE tp.package_id = $1
+            `, [item.bookable_item_id]);
+            itemDetails.package_info = packageInfo;
+        } else if (item.type === 'flight') {
+            const flightInfo = await db.oneOrNone(`
+                SELECT
+                    f.airline,
+                    f.flight_number,
+                    ol.location_name as origin_name,
+                    dl.location_name as destination_name,
+                    f.departure_time,
+                    f.arrival_time,
+                    f.origin_iata,
+                    f.destination_iata,
+                    f.duration_minutes
+                FROM flight f
+                JOIN locations ol ON f.origin_id = ol.location_id
+                JOIN locations dl ON f.destination_id = dl.location_id
+                WHERE f.flight_id = $1
+            `, [item.bookable_item_id]);
+            itemDetails.flight_info = flightInfo;
+
+            // Fetch flight segments for this specific flight item
+            const flightSegments = await db.any(`
+                SELECT
+                    fs.segment_id,
+                    fs.segment_number,
+                    ol.location_name as origin_name,
+                    dl.location_name as destination_name,
+                    ol.iata_code as origin_iata,         
+                    dl.iata_code as destination_iata,     
+                    fs.departure_time,
+                    fs.arrival_time,
+                    fs.airline,
+                    fs.flight_number,
+                    fs.seat_number,
+                    fs.gate,
+                    fs.terminal,
+                    fs.flight_class,
+                    fs.is_transit,
+                    fs.transit_duration_minutes
+                FROM flight_segment fs
+                JOIN locations ol ON fs.origin_id = ol.location_id
+                JOIN locations dl ON fs.destination_id = dl.location_id
+                WHERE fs.booking_id = $1 AND fs.bookable_item_id = $2
+                ORDER BY segment_number ASC
+            `, [bookingId, item.bookable_item_id]);
+            itemDetails.flight_segments = flightSegments;
+
+        } else if (item.type === 'accommodation') {
+            const accommodationInfo = await db.oneOrNone(`
+                SELECT
+                    a.hotel_name,
+                    a.room_type,
+                    a.check_in,
+                    a.check_out,
+                    l.location_name as location_name
+                FROM accommodation a
+                JOIN locations l ON a.location_id = l.location_id
+                WHERE a.accommodation_id = $1
+            `, [item.bookable_item_id]);
+            itemDetails.accommodation_info = accommodationInfo;
+        } else if (item.type === 'activity') {
+            const activityInfo = await db.oneOrNone(`
+                SELECT
+                    act.activity_name,
+                    act.activity_type,
+                    act.duration_minutes,
+                    act.start_time,
+                    act.end_time,
+                    l.location_name as location_name
+                FROM activity act
+                JOIN locations l ON act.location_id = l.location_id
+                WHERE act.activity_id = $1
+            `, [item.bookable_item_id]);
+            itemDetails.activity_info = activityInfo;
+        }
+        return itemDetails;
+    }));
+
+    // 5. Get invoice info and invoice items
+    const invoice = await db.oneOrNone(`
+        SELECT
+            invoice_id,
+            issued_at,
+            overall_status
+        FROM invoice
+        WHERE booking_id = $1
+    `, [bookingId]);
+
+    let invoiceInfo = null;
+    if (invoice) {
+        const invoiceItems = await db.any(`
+            SELECT
+                invoice_item_id,
+                bookable_item_id,
+                base_price,
+                discount,
+                final_price,
+                payment_status
+            FROM invoice_item
+            WHERE invoice_id = $1
+        `, [invoice.invoice_id]);
+
+        invoiceInfo = {
+            invoice_id: invoice.invoice_id,
+            issued_at: invoice.issued_at,
+            overall_status: invoice.overall_status,
+            total_amount: invoiceItems.reduce((sum, item) => sum + parseFloat(item.final_price), 0),
+            discount_amount: invoiceItems.reduce((sum, item) => sum + parseFloat(item.discount), 0),
+            original_amount: invoiceItems.reduce((sum, item) => sum + parseFloat(item.base_price), 0),
+            items: invoiceItems
+        };
+    }
+
+    // 6. Get any coupon details associated with this booking
+    const couponInfo = await db.oneOrNone(`
+        SELECT
+            coupon_id, coupon_code, coupon_type, discount_type, discount_value,
+            max_discount_amount, min_purchase_amount, usage_limit, usage_count,
+            valid_from, valid_until, title, description, status, created_at, updated_at
+        FROM coupons
+        WHERE booking_id = $1
+        LIMIT 1
+    `, [bookingId]);
+
+    // 7. Get payment details
+    const paymentInfo = await db.any(`
+        SELECT
+            p.payment_id,
+            p.amount,
+            p.payment_date,
+            p.method,
+            p.status,
+            p.invoice_item_id
+        FROM payment p
+        JOIN invoice_item ii ON p.invoice_item_id = ii.invoice_item_id
+        JOIN invoice i ON ii.invoice_id = i.invoice_id
+        WHERE i.booking_id = $1
+        ORDER BY p.payment_date DESC
+    `, [bookingId]);
+
+    // Build final response object
+    const finalBookingDetails = {
+        booking_id: basicBooking.booking_id,
+        booked_at: basicBooking.booked_at,
+        travel_date: basicBooking.travel_date,
+        status: basicBooking.status,
+        user_info: {
+            user_id: basicBooking.user_id,
+            username: basicBooking.username,
+            email: basicBooking.email,
+            profile_picture_url: basicBooking.profile_picture_url
+        },
+        passenger_details: passengerDetails,
+        booked_items: bookedItemsWithDetails,
+        invoice_info: invoiceInfo,
+        coupon_info: couponInfo,
+        payment_info: paymentInfo
+    };
+
+    res.json(finalBookingDetails);
 });
 
 
@@ -325,4 +430,66 @@ export const updateBookingStatus = asyncHandler(async (req, res) => {
     await db.none('UPDATE booking SET status = $1 WHERE booking_id = $2', [status, bookingId]);
 
     res.status(200).json({ message: `Booking status updated to ${status}.` });
+});
+
+export const getPackages = asyncHandler(async (req, res) => {
+    // Use the same pattern as other admin data fetching functions
+    return getPaginatedData(req, res, {
+        baseQuery: `SELECT p.package_id, p.destination_id, p.start_date, p.end_date, p.group_size, p.created_by,
+                    bi.title, bi.description, bi.price, bi.created_at,
+                    l.location_name as destination_name,
+                    COALESCE(up.username, 'System') as creator_name
+                    FROM travel_package p
+                    JOIN bookable_item bi ON p.package_id = bi.bookable_item_id
+                    JOIN locations l ON p.destination_id = l.location_id
+                    LEFT JOIN user_profiles up ON p.created_by = up.user_id`,
+        countQuery: `SELECT COUNT(*)
+                     FROM travel_package p
+                     JOIN bookable_item bi ON p.package_id = bi.bookable_item_id
+                     JOIN locations l ON p.destination_id = l.location_id
+                     LEFT JOIN user_profiles up ON p.created_by = up.user_id`,
+        searchColumns: ['bi.title', 'bi.description', 'l.location_name', 'up.username'],
+        allowedSortBy: ['package_id', 'title', 'destination_name', 'creator_name', 'start_date', 'end_date', 'price', 'created_at'],
+        defaultSortBy: 'created_at'
+    });
+});
+
+// Get flight bookings specifically
+export const getFlightBookings = (req, res) => getPaginatedData(req, res, {
+    baseQuery: `SELECT DISTINCT b.booking_id, b.user_id, b.booked_at, b.booked_at as created_at, b.travel_date, b.status, up.username as user_username,
+                       bi.title as flight_title, bi.description as flight_description
+                FROM booking b
+                JOIN user_profiles up ON b.user_id = up.user_id
+                JOIN booking_item bi_item ON b.booking_id = bi_item.booking_id
+                JOIN bookable_item bi ON bi_item.bookable_item_id = bi.bookable_item_id
+                WHERE bi.type = 'flight'`,
+    countQuery: `SELECT COUNT(DISTINCT b.booking_id)
+                 FROM booking b
+                 JOIN user_profiles up ON b.user_id = up.user_id
+                 JOIN booking_item bi_item ON b.booking_id = bi_item.booking_id
+                 JOIN bookable_item bi ON bi_item.bookable_item_id = bi.bookable_item_id
+                 WHERE bi.type = 'flight'`,
+    searchColumns: ['b.booking_id::text', 'up.username', 'b.status', 'bi.title'],
+    defaultSortBy: 'booked_at',
+    allowedSortBy: ['booking_id', 'user_id', 'user_username', 'booked_at', 'created_at', 'travel_date', 'status', 'flight_title']
+});
+
+// Get hotel bookings specifically  
+export const getHotelBookings = (req, res) => getPaginatedData(req, res, {
+    baseQuery: `SELECT DISTINCT b.booking_id, b.user_id, b.booked_at, b.booked_at as created_at, b.travel_date, b.status, up.username as user_username,
+                       bi.title as hotel_title, bi.description as hotel_description
+                FROM booking b
+                JOIN user_profiles up ON b.user_id = up.user_id
+                JOIN booking_item bi_item ON b.booking_id = bi_item.booking_id
+                JOIN bookable_item bi ON bi_item.bookable_item_id = bi.bookable_item_id
+                WHERE bi.type = 'accommodation'`,
+    countQuery: `SELECT COUNT(DISTINCT b.booking_id)
+                 FROM booking b
+                 JOIN user_profiles up ON b.user_id = up.user_id
+                 JOIN booking_item bi_item ON b.booking_id = bi_item.booking_id
+                 JOIN bookable_item bi ON bi_item.bookable_item_id = bi.bookable_item_id
+                 WHERE bi.type = 'accommodation'`,
+    searchColumns: ['b.booking_id::text', 'up.username', 'b.status', 'bi.title'],
+    defaultSortBy: 'booked_at',
+    allowedSortBy: ['booking_id', 'user_id', 'user_username', 'booked_at', 'created_at', 'travel_date', 'status', 'hotel_title']
 });

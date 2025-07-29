@@ -1,14 +1,9 @@
 import express from 'express';
-import { checkJwtMiddleware, requireRole } from '../../middleware/authMiddleware.js';
 import { getAllPayments } from '../../controllers/adminPaymentController.js';
 
 const router = express.Router();
 
-router.get(
-  '/',
-  checkJwtMiddleware,
-  requireRole('admin'),
-  getAllPayments
-);
+// Note: Auth middleware already applied at parent router level in adminRoutes.js
+router.get('/', getAllPayments);
 
 export default router;

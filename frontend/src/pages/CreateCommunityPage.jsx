@@ -1,6 +1,7 @@
 // frontend/src/pages/CreateCommunityPage.jsx
 
 import { useState, useEffect } from "react";
+import { Loader2 } from "lucide-react";
 import api from "../services/api.js";
 import MapPicker from "../components/common/MapPicker.jsx";
 

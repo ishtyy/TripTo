@@ -91,9 +91,8 @@ const addFlightToItinerary = asyncHandler(async (req, res) => {
 
         await db.none(
             `INSERT INTO flight (
-                flight_id, airline, flight_number, origin_id, destination_id, departure_time, arrival_time,
-                seat_number, gate, terminal, duration_minutes, flight_class
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)`,
+                flight_id, airline, flight_number, origin_id, destination_id, departure_time, arrival_time, duration_minutes
+            ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)`,
             [
                 bookableItemId,
                 flight.airline.name,
@@ -102,11 +101,7 @@ const addFlightToItinerary = asyncHandler(async (req, res) => {
                 destLoc.location_id,
                 flight.legs[0].departure.scheduledTime,
                 flight.legs[flight.legs.length - 1].arrival.scheduledTime,
-                flight.seat_number || null,
-                flight.gate || null,
-                flight.terminal || null,
-                flight.totalDurationMinutes,
-                flight.flight_class || 'Economy'
+                flight.totalDurationMinutes
             ]
         );
     } else {
@@ -128,7 +123,12 @@ const addFlightToItinerary = asyncHandler(async (req, res) => {
         [itinerary.itinerary_id, bookableItemId, flight]
     );
 
-    res.status(200).json({ message: 'Flight added to itinerary.', bookableItemId: bookableItemId, flight });
+    res.status(200).json({ 
+        message: 'Flight added to itinerary.', 
+        itineraryId: itinerary.itinerary_id, 
+        bookableItemId: bookableItemId, 
+        flight 
+    });
 });
 
 const removeFlightFromItinerary = asyncHandler(async (req, res) => {
@@ -226,7 +226,7 @@ const createBooking = asyncHandler(async (req, res) => {
                 const seatForFlight = flight.selectedSeat || null;
 
                 let masterFlightRecord = await t.oneOrNone(
-                    `SELECT flight_id, seat_number, gate, terminal, flight_class, duration_minutes FROM flight WHERE flight_number = $1 AND departure_time = $2`,
+                    `SELECT flight_id, duration_minutes FROM flight WHERE flight_number = $1 AND departure_time = $2`,
                     [flight.number, flight.legs[0].departure.scheduledTime]
                 );
 
@@ -234,13 +234,8 @@ const createBooking = asyncHandler(async (req, res) => {
                 let flightPrice = Math.floor(Math.random() * 500) + 200; // This price should ideally come from bookable_item.price
 
                 if (!masterFlightRecord) {
-                    const masterFlightSeat = flight.seat_number || null;
-                    const masterFlightGate = flight.gate || null;
-                    const masterFlightTerminal = flight.terminal || null;
-                    const masterFlightClass = flight.flight_class || 'Economy';
-
                     const originIata = flight.legs[0].departure.airport.iataCode;
-                    const destIata = flight.legs[flight.legs.length - 1].arrival.airport.iataCode; // This refers to the main flight's destination
+                    const destIata = flight.legs[flight.legs.length - 1].arrival.airport.iataCode;
 
                     const originLoc = await t.oneOrNone('SELECT location_id FROM locations WHERE iata_code = $1', [originIata]);
                     const destLoc = await t.oneOrNone('SELECT location_id FROM locations WHERE iata_code = $1', [destIata]);
@@ -267,10 +262,9 @@ const createBooking = asyncHandler(async (req, res) => {
 
                     masterFlightRecord = await t.one(
                         `INSERT INTO flight (
-                            flight_id, airline, flight_number, origin_id, destination_id, departure_time, arrival_time,
-                            seat_number, gate, terminal, duration_minutes, flight_class
-                        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
-                        RETURNING flight_id, seat_number, gate, terminal, flight_class, duration_minutes`,
+                            flight_id, airline, flight_number, origin_id, destination_id, departure_time, arrival_time, duration_minutes
+                        ) VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+                        RETURNING flight_id, duration_minutes`,
                         [
                             currentFlightId,
                             flight.airline.name,
@@ -279,11 +273,7 @@ const createBooking = asyncHandler(async (req, res) => {
                             destLoc.location_id,
                             flight.legs[0].departure.scheduledTime,
                             flight.legs[flight.legs.length - 1].arrival.scheduledTime,
-                            flight.seat_number || null,
-                            flight.gate || null,
-                            flight.terminal || null,
-                            flight.totalDurationMinutes,
-                            flight.flight_class || 'Economy'
+                            flight.totalDurationMinutes
                         ]
                     );
 
@@ -293,7 +283,7 @@ const createBooking = asyncHandler(async (req, res) => {
                     if (existingBookableItem) flightPrice = existingBookableItem.price;
                 }
 
-                // 2. Insert into 'booking_item' (passenger details)
+                // 2. Insert into 'booking_item' (passenger details - basic)
                 await t.none(
                     `INSERT INTO booking_item (
                         booking_id, bookable_item_id, quantity, price_at_booking,
@@ -308,6 +298,24 @@ const createBooking = asyncHandler(async (req, res) => {
                         passengerForFlight.type || null
                     ]
                 );
+
+                // NEW: Insert into 'passenger_detail' for comprehensive passenger data
+                // This assumes `flight.passengerData` object contains the full passenger details from the frontend
+                await t.none(
+                    `INSERT INTO passenger_detail (
+                        booking_id, full_name, date_of_birth, passport_number, nationality, email, phone
+                    ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+                    [
+                        bookingId,
+                        `${passengerForFlight.firstName || ''} ${passengerForFlight.lastName || ''}`.trim(),
+                        passengerForFlight.dateOfBirth || null,
+                        passengerForFlight.passportNumber || null,
+                        passengerForFlight.nationality || 'Unknown', // Default if not provided by frontend
+                        passengerForFlight.email || null,
+                        passengerForFlight.phone || null
+                    ]
+                );
+
 
                 // --- Invoice Item Creation ---
                 await t.none(
@@ -404,11 +412,7 @@ const getBookingById = asyncHandler(async (req, res) => {
                     'passenger_name', bi.passenger_name,
                     'passenger_gender', bi.passenger_gender,
                     'passenger_type', bi.passenger_type,
-                    -- Flight specific details from FLIGHT table (f)
-                    'seat_number', f.seat_number,
-                    'gate', f.gate,
-                    'terminal', f.terminal,
-                    'flight_class', f.flight_class,
+                    -- Flight specific details from FLIGHT table (f) - only master data
                     'flight_info', CASE WHEN bi_main.type = 'flight' THEN
                         json_build_object(
                             'airline', f.airline,

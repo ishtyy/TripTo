@@ -1,5 +1,3 @@
-import React from 'react';
-
 const PostCardSkeleton = () => {
   (
     <div className="bg-gray-900/80 rounded-xl p-5 shadow-lg border-2 border-gray-800 animate-pulse">
