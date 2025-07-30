@@ -72,13 +72,13 @@ export const addModuleToPackage = asyncHandler(async (req, res) => {
 // --- Package Search and Details Functions ---
 
 export const searchPublicPackages = asyncHandler(async (req, res) => {
-    const { 
-        page = 1, 
-        limit = 20, 
-        destination, 
-        minPrice, 
-        maxPrice, 
-        startDate, 
+    const {
+        page = 1,
+        limit = 20,
+        destination,
+        minPrice,
+        maxPrice,
+        startDate,
         endDate,
         sortBy = 'created_at',
         sortOrder = 'desc'
@@ -258,9 +258,12 @@ export const getPublicPackageDetails = asyncHandler(async (req, res) => {
 // --- Package Booking Function (Essential for Coupon Generation) ---
 
 export const bookPackage = asyncHandler(async (req, res) => {
-    const { 
-        package_id, 
-        passenger_details = [], 
+
+    console.log('🚀 PACKAGE BOOKING STARTED - THIS IS A TEST LOG');
+    
+    const {
+        package_id,
+        passenger_details = [],
         total_amount,
         original_amount,
         discount_amount = 0,
@@ -297,18 +300,20 @@ export const bookPackage = asyncHandler(async (req, res) => {
             // 1. Verify package exists and get details
             const packageDetails = await t.oneOrNone(
                 `SELECT tp.package_id, tp.destination_id, tp.start_date, tp.end_date, tp.group_size,
-                        bp.title, bp.description, bp.price,
-                        l.location_name as destination_name
-                 FROM travel_package tp
-                 JOIN bookable_item bp ON tp.package_id = bp.bookable_item_id
-                 JOIN locations l ON tp.destination_id = l.location_id
-                 WHERE tp.package_id = $1`,
+            bp.title, bp.description, bp.price,
+            l.location_name as destination_name
+     FROM travel_package tp
+     JOIN bookable_item bp ON tp.package_id = bp.bookable_item_id
+     JOIN locations l ON tp.destination_id = l.location_id
+     WHERE tp.package_id = $1 AND bp.type = 'package'`,
                 [package_id]
             );
 
             if (!packageDetails) {
-                throw new Error('Package not found');
+                throw new Error(`Package with ID ${package_id} not found or is not a valid package`);
             }
+
+            console.log('Found package details:', packageDetails); // Add logging
 
             // 2. Validate passenger count
             if (passenger_details.length > packageDetails.group_size) {
@@ -336,11 +341,20 @@ export const bookPackage = asyncHandler(async (req, res) => {
             const invoiceId = invoice.invoice_id;
 
             // FIX: Insert into booking_item to link booking with the package (bookable_item)
+            console.log('Inserting booking_item:', {
+                bookingId,
+                package_id,
+                passenger_count: passenger_details.length,
+                total_amount
+            });
+
             await t.none(
                 `INSERT INTO booking_item (booking_id, bookable_item_id, quantity, price_at_booking)
-                 VALUES ($1, $2, $3, $4)`,
-                [bookingId, package_id, passenger_details.length, packageDetails.price]
+     VALUES ($1, $2, $3, $4)`,
+                [bookingId, package_id, passenger_details.length, total_amount]
             );
+
+            console.log('Successfully inserted booking_item');
 
             // FIX: Create an Invoice Item for the package to store financial details
             await t.none(
@@ -359,13 +373,13 @@ export const bookPackage = asyncHandler(async (req, res) => {
                         booking_id, full_name, date_of_birth, passport_number, nationality, email, phone
                     ) VALUES ($1, $2, $3, $4, $5, $6, $7)`,
                     [
-                        bookingId, 
-                        fullName, 
-                        passenger.dateOfBirth || null, 
-                        passenger.passportNumber || null, 
+                        bookingId,
+                        fullName,
+                        passenger.dateOfBirth || null,
+                        passenger.passportNumber || null,
                         nationality,
-                        passenger.email || null, 
-                        passenger.phone || null 
+                        passenger.email || null,
+                        passenger.phone || null
                     ]
                 );
             }
@@ -387,7 +401,7 @@ export const bookPackage = asyncHandler(async (req, res) => {
                 }
             }
             let generatedCoupon = null;
-            
+
             console.log('Generating flight discount coupon with default settings');
             const settings = {
                 discount_percent: 25,
@@ -397,10 +411,10 @@ export const bookPackage = asyncHandler(async (req, res) => {
 
             try {
                 // Generate unique coupon code for booking
-                const destCode = packageDetails.destination_name?.slice(0, 4).toUpperCase() || 'TRIP'; 
+                const destCode = packageDetails.destination_name?.slice(0, 4).toUpperCase() || 'TRIP';
                 const discount = String(settings.discount_percent).padStart(2, '0');
                 let couponCode = `${destCode}${discount}-B${Math.random().toString(36).substring(2, 7).toUpperCase()}`;
-                
+
                 // Ensure uniqueness
                 let attempts = 0;
                 while (attempts < 10) {
@@ -408,9 +422,9 @@ export const bookPackage = asyncHandler(async (req, res) => {
                         'SELECT coupon_id FROM coupons WHERE coupon_code = $1',
                         [couponCode]
                     );
-                    
+
                     if (!existing) break;
-                    
+
                     const newRandom = Math.random().toString(36).substring(2, 8).toUpperCase();
                     couponCode = `${destCode}${discount}-B${newRandom}`;
                     attempts++;
@@ -498,10 +512,35 @@ export const bookPackage = asyncHandler(async (req, res) => {
 
     } catch (error) {
         console.error('Error booking package:', error);
+        console.error('Error stack:', error.stack);
+        console.error('Error details:', {
+            message: error.message,
+            code: error.code,
+            detail: error.detail,
+            package_id,
+            user_id,
+            passenger_count: passenger_details?.length
+        });
+
+        let errorMessage = 'Failed to book package';
+
+        // Handle specific database errors
+        if (error.code === '23503') {
+            errorMessage = 'Package not found or invalid package ID';
+        } else if (error.code === '23505') {
+            errorMessage = 'Booking already exists';
+        } else if (error.message) {
+            errorMessage = error.message;
+        }
+
         res.status(500).json({
             success: false,
-            message: error.message || 'Failed to book package',
-            error: error.message
+            message: errorMessage,
+            error: error.message,
+            debug: {
+                code: error.code,
+                detail: error.detail
+            }
         });
     }
 });
@@ -510,7 +549,7 @@ export const bookPackage = asyncHandler(async (req, res) => {
 
 export const createCompletePackage = asyncHandler(async (req, res) => {
     const { packageData, modules = [] } = req.body;
-    
+
     try {
         const result = await db.tx(async (t) => {
             // Create the package
@@ -575,15 +614,15 @@ export const getPackageDetails = asyncHandler(async (req, res) => {
 
 export const updatePackage = asyncHandler(async (req, res) => {
     const { packageId } = req.params;
-    const { 
-        title, 
-        description, 
-        destination, 
-        start_date, 
-        end_date, 
-        group_size, 
-        hotels = [], 
-        activities = [], 
+    const {
+        title,
+        description,
+        destination,
+        start_date,
+        end_date,
+        group_size,
+        hotels = [],
+        activities = [],
         flight_discount_metadata,
         total_slots,
         available_until
@@ -687,9 +726,9 @@ export const updatePackage = asyncHandler(async (req, res) => {
                     `INSERT INTO activity (activity_id, activity_name, activity_type, duration_minutes, start_time, end_time, location_id)
                      VALUES ($1, $2, $3, $4, $5, $6, $7)`,
                     [
-                        activityId.bookable_item_id, 
-                        activity.activity_name, 
-                        activity.activity_type || 'adventure', 
+                        activityId.bookable_item_id,
+                        activity.activity_name,
+                        activity.activity_type || 'adventure',
                         activity.duration_minutes || 60,
                         activity.start_time || '09:00:00',
                         activity.end_time || '17:00:00',

@@ -123,11 +123,11 @@ const addFlightToItinerary = asyncHandler(async (req, res) => {
         [itinerary.itinerary_id, bookableItemId, flight]
     );
 
-    res.status(200).json({ 
-        message: 'Flight added to itinerary.', 
-        itineraryId: itinerary.itinerary_id, 
-        bookableItemId: bookableItemId, 
-        flight 
+    res.status(200).json({
+        message: 'Flight added to itinerary.',
+        itineraryId: itinerary.itinerary_id,
+        bookableItemId: bookableItemId,
+        flight
     });
 });
 
@@ -520,6 +520,140 @@ const getBookingsByUser = asyncHandler(async (req, res) => {
     res.json(bookings);
 });
 
+const getComprehensiveItinerary = asyncHandler(async (req, res) => {
+    const userId = req.user?.user_id;
+
+    try {
+        // Get all user bookings
+        const bookings = await db.any(`
+            SELECT 
+                b.booking_id,
+                b.travel_date,
+                b.status,
+                b.booked_at,
+                'flight' as booking_type,
+                json_agg(
+                    json_build_object(
+                        'title', bi.title,
+                        'description', bi.description,
+                        'price', bi.price,
+                        'type', bi.type
+                    )
+                ) as items
+            FROM booking b
+            JOIN booking_item bki ON b.booking_id = bki.booking_id
+            JOIN bookable_item bi ON bki.bookable_item_id = bi.bookable_item_id
+            WHERE b.user_id = $1
+            GROUP BY b.booking_id, b.travel_date, b.status, b.booked_at
+        `, [userId]);
+
+        // Get hotel bookings
+        const hotelBookings = await db.any(`
+            SELECT 
+                b.booking_id,
+                b.travel_date,
+                b.status,
+                b.booked_at,
+                'hotel' as booking_type,
+                hb.check_in_date,
+                hb.check_out_date,
+                hb.guest_count,
+                hb.special_requests,
+                h.hotel_name,
+                h.address as hotel_address,
+                hr.room_type,
+                hr.bed_type,
+                hr.base_price
+            FROM booking b
+            JOIN hotel_bookings hb ON b.booking_id = hb.booking_id
+            LEFT JOIN hotels h ON hb.hotel_id = h.hotel_id
+            LEFT JOIN hotel_rooms hr ON hb.room_id = hr.room_id
+            WHERE b.user_id = $1
+        `, [userId]);
+
+        // Get package bookings (if any exist)
+        const packageBookings = await db.any(`
+    SELECT 
+        b.booking_id,
+        b.travel_date,
+        b.status,
+        b.booked_at,
+        'package' as booking_type,
+        tp.start_date,
+        tp.end_date,
+        tp.group_size,
+        bi.title as package_name,
+        bi.description as package_description,
+        bki.price_at_booking as package_price,
+        l.location_name as destination
+    FROM booking b
+    JOIN booking_item bki ON b.booking_id = bki.booking_id
+    JOIN bookable_item bi ON bki.bookable_item_id = bi.bookable_item_id
+    JOIN travel_package tp ON bi.bookable_item_id = tp.package_id
+    LEFT JOIN locations l ON tp.destination_id = l.location_id
+    WHERE b.user_id = $1
+`, [userId]);
+
+        // Combine all bookings and sort by date
+        const allBookings = [
+            ...bookings.map(booking => ({
+                ...booking,
+                booking_type: 'flight'
+            })),
+            ...hotelBookings.map(booking => ({
+                ...booking,
+                booking_type: 'hotel',
+                items: [{
+                    title: booking.hotel_name || 'Hotel Booking',
+                    description: `${booking.room_type || 'Standard Room'} - ${booking.guest_count || 1} guests`,
+                    details: {
+                        check_in: booking.check_in_date,
+                        check_out: booking.check_out_date,
+                        room_type: booking.room_type,
+                        bed_type: booking.bed_type,
+                        special_requests: booking.special_requests
+                    },
+                    price: booking.base_price
+                }]
+            })),
+            ...packageBookings.map(booking => ({
+                ...booking,
+                booking_type: 'package',
+                items: [{
+                    title: booking.package_name,
+                    description: booking.package_description,
+                    details: {
+                        destination: booking.destination,
+                        start_date: booking.start_date,
+                        end_date: booking.end_date,
+                        group_size: booking.group_size
+                    },
+                    price: booking.package_price
+                }]
+            }))
+        ].sort((a, b) => new Date(b.booked_at) - new Date(a.booked_at));
+
+        res.json({
+            success: true,
+            bookings: allBookings,  // Changed from 'itinerary' to 'bookings'
+            total_bookings: allBookings.length,
+            booking_types: {
+                flights: bookings.length,
+                hotels: hotelBookings.length,
+                packages: packageBookings.length
+            }
+        });
+
+    } catch (error) {
+        console.error('Error fetching comprehensive itinerary:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch itinerary',
+            message: error.message
+        });
+    }
+});
+
 const getMyBookingHistory = asyncHandler(async (req, res) => {
     const userId = req.user?.user_id || 'f47ac10b-58cc-4372-a567-0e02b2c3d479';
     const bookings = await db.any(
@@ -547,11 +681,12 @@ const getAllBookings = asyncHandler(async (req, res) => {
 export {
     getOrCreateItinerary,
     addFlightToItinerary,
-    removeFlightFromItinerary, // Export the new remove function
-    updateItineraryItemDetails, // Export the new update function
+    removeFlightFromItinerary,
+    updateItineraryItemDetails,
     createBooking,
     getBookingById,
     getBookingsByUser,
     getMyBookingHistory,
+    getComprehensiveItinerary,  // Add the new function
     getAllBookings
 };

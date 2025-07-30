@@ -35,17 +35,17 @@ export default function PackageBookingModal({ packageData, onClose, onBookingCom
         try {
             console.log('Fetching user coupons...');
             // Fetch coupons that are 'available' for the current user
-            const response = await api.get('/coupons/my-coupons?status=available'); 
+            const response = await api.get('/coupons/my-coupons?status=available');
             console.log('Coupons API response:', response.data);
-            
+
             if (response.data.success) {
                 // Filter for coupons applicable to packages or general use
-                const availableCoupons = response.data.coupons.filter(coupon => 
+                const availableCoupons = response.data.coupons.filter(coupon =>
                     coupon.current_status === 'available' && // Ensure it's truly available
-                    (coupon.applicable_to_packages || 
-                     coupon.coupon_type === 'package_discount' ||
-                     coupon.coupon_type === 'general' ||
-                     !coupon.applicable_to_flights) // Include non-flight specific coupons
+                    (coupon.applicable_to_packages ||
+                        coupon.coupon_type === 'package_discount' ||
+                        coupon.coupon_type === 'general' ||
+                        !coupon.applicable_to_flights) // Include non-flight specific coupons
                 );
                 setUserCoupons(availableCoupons);
                 console.log('Loaded available coupons for packages:', availableCoupons);
@@ -97,22 +97,28 @@ export default function PackageBookingModal({ packageData, onClose, onBookingCom
     };
 
     const validatePassengerDetails = () => {
+        if (passengerDetails.length === 0) {
+            toast.error('At least one passenger is required');
+            return false;
+        }
+
         for (let i = 0; i < passengerDetails.length; i++) {
             const passenger = passengerDetails[i];
-            if (!passenger.firstName || !passenger.lastName || !passenger.email) {
-                toast.error(`Please fill in required details for passenger ${i + 1}`);
+            if (!passenger.firstName?.trim() || !passenger.lastName?.trim()) {
+                toast.error(`Please fill in first and last name for passenger ${i + 1}`);
                 return false;
             }
-            // Basic email validation
-            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-            if (!emailRegex.test(passenger.email)) {
-                toast.error(`Please enter a valid email for passenger ${i + 1}`);
-                return false;
+            if (passenger.email && passenger.email.trim()) {
+                // Basic email validation only if email is provided
+                const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+                if (!emailRegex.test(passenger.email.trim())) {
+                    toast.error(`Please enter a valid email for passenger ${i + 1}`);
+                    return false;
+                }
             }
         }
         return true;
     };
-
     const applyCouponLogic = async (codeToApply) => {
         if (!codeToApply.trim()) {
             toast.error('Please enter a coupon code');
@@ -181,7 +187,11 @@ export default function PackageBookingModal({ packageData, onClose, onBookingCom
                 coupon_code: appliedCoupon?.coupon_code || null
             };
 
+            console.log('Sending package booking data:', bookingData); // Add logging
+
             const response = await api.post('/packages/book', bookingData);
+
+            console.log('Package booking response:', response.data); // Add logging
 
             if (response.data.success) {
                 // Show success message with generated coupon info
@@ -197,7 +207,7 @@ export default function PackageBookingModal({ packageData, onClose, onBookingCom
                                 {coupon.discount_percent}% off flights (max ${coupon.max_discount_amount})
                             </p>
                         </div>,
-                        { 
+                        {
                             duration: 8000,
                             style: {
                                 background: '#10b981',
@@ -209,9 +219,13 @@ export default function PackageBookingModal({ packageData, onClose, onBookingCom
                     toast.success('Package booked successfully!');
                 }
                 onBookingComplete(response.data.booking);
+            } else {
+                console.error('Booking failed with success=false:', response.data);
+                toast.error(response.data.message || 'Failed to book package');
             }
         } catch (error) {
             console.error('Error booking package:', error);
+            console.error('Error response:', error.response?.data);
             toast.error(error.response?.data?.message || 'Failed to book package');
         } finally {
             setLoading(false);
@@ -242,7 +256,7 @@ export default function PackageBookingModal({ packageData, onClose, onBookingCom
                         <h3 className="text-xl font-semibold text-white">Book Package</h3>
                         <p className="text-gray-400">{packageInfo.title}</p>
                     </div>
-                    <button 
+                    <button
                         onClick={onClose}
                         className="text-gray-400 hover:text-white transition-colors"
                     >
@@ -407,7 +421,7 @@ export default function PackageBookingModal({ packageData, onClose, onBookingCom
                                     <Tag size={20} />
                                     Discount Coupon <span className="text-gray-400 text-sm font-normal">(Optional)</span>
                                 </h4>
-                                
+
                                 <div className="text-sm text-gray-400 mb-3">
                                     Have a discount coupon? Apply it here to save on your booking.
                                 </div>
@@ -425,7 +439,7 @@ export default function PackageBookingModal({ packageData, onClose, onBookingCom
                                                 <ChevronDown size={16} className={`transform transition-transform ${showCouponDropdown ? 'rotate-180' : ''}`} />
                                             </button>
                                         </div>
-                                        
+
                                         {showCouponDropdown && (
                                             <div className="max-h-40 overflow-y-auto space-y-2 p-2 bg-gray-700/50 rounded-lg border border-gray-600">
                                                 {userCoupons.map((coupon) => (
@@ -439,8 +453,8 @@ export default function PackageBookingModal({ packageData, onClose, onBookingCom
                                                                 <p className="font-medium text-purple-300">{coupon.coupon_code}</p>
                                                                 <p className="text-sm text-gray-300">{coupon.title}</p>
                                                                 <p className="text-xs text-gray-400">
-                                                                    {coupon.discount_type === 'percentage' 
-                                                                        ? `${coupon.discount_value}% off` 
+                                                                    {coupon.discount_type === 'percentage'
+                                                                        ? `${coupon.discount_value}% off`
                                                                         : `$${coupon.discount_value} off`}
                                                                     {coupon.max_discount_amount && ` (max $${coupon.max_discount_amount})`}
                                                                 </p>
@@ -455,7 +469,7 @@ export default function PackageBookingModal({ packageData, onClose, onBookingCom
                                         )}
                                     </div>
                                 )}
-                                
+
                                 {!appliedCoupon ? (
                                     <div className="space-y-3">
                                         <div className="flex gap-3">
@@ -479,14 +493,14 @@ export default function PackageBookingModal({ packageData, onClose, onBookingCom
                                                 Apply
                                             </button>
                                         </div>
-                                        
+
                                         {loadingCoupons && (
                                             <div className="flex items-center gap-2 text-sm text-gray-400">
                                                 <Loader2 className="animate-spin" size={14} />
                                                 Loading your coupons...
                                             </div>
                                         )}
-                                        
+
                                         {!loadingCoupons && userCoupons.length === 0 && (
                                             <div className="text-sm text-gray-500 bg-gray-700/30 p-3 rounded-lg border border-gray-600">
                                                 <div className="flex items-center gap-2 mb-2">
@@ -540,7 +554,7 @@ export default function PackageBookingModal({ packageData, onClose, onBookingCom
                                         <span>{formatPrice(finalAmount)}</span>
                                     </div>
                                 </div>
-                                
+
                                 {/* Flight Discount Reward Notice */}
                                 <div className="bg-purple-900/30 border border-purple-600/30 p-4 rounded-lg">
                                     <div className="flex items-center gap-2 text-purple-300 text-sm mb-2">
@@ -554,9 +568,9 @@ export default function PackageBookingModal({ packageData, onClose, onBookingCom
                                         <div className="bg-purple-800/30 p-3 rounded-lg border border-purple-600/20">
                                             <p className="text-purple-100 font-medium text-sm">✈️ Flight Discount Coupon</p>
                                             <p className="text-purple-200 text-xs mt-1">
-                                                • Up to 25% off your next flight booking<br/>
-                                                • Maximum discount: $200<br/>
-                                                • Valid for 90 days<br/>
+                                                • Up to 25% off your next flight booking<br />
+                                                • Maximum discount: $200<br />
+                                                • Valid for 90 days<br />
                                                 • Automatically added to your account
                                             </p>
                                         </div>

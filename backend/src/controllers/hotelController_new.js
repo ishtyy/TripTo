@@ -24,18 +24,18 @@ export const getHotels = asyncHandler(async (req, res) => {
     try {
         const { destination, checkin, checkout, guests, limit = 20 } = req.query;
         let hotels = loadHotelsFromJSON();
-        
+
         // Filter by destination if provided
         if (destination) {
-            hotels = hotels.filter(hotel => 
+            hotels = hotels.filter(hotel =>
                 hotel.location.toLowerCase().includes(destination.toLowerCase())
             );
         }
-        
+
         // Limit results
         hotels = hotels.slice(0, parseInt(limit));
-        
-        res.json({ 
+
+        res.json({
             hotels,
             total: hotels.length,
             filters: { destination, checkin, checkout, guests }
@@ -51,13 +51,13 @@ export const getHotelDetails = asyncHandler(async (req, res) => {
     try {
         const { hotelId } = req.params;
         const hotels = loadHotelsFromJSON();
-        const hotel = hotels.find(h => h.id === parseInt(hotelId));
-        
+        const hotel = hotels.find(h => h.id.toString() === hotelId.toString());
+
         if (!hotel) {
             res.status(404).json({ error: 'Hotel not found' });
             return;
         }
-        
+
         res.json({ hotel });
     } catch (error) {
         console.error('Error fetching hotel details:', error);
@@ -69,12 +69,12 @@ export const getHotelDetails = asyncHandler(async (req, res) => {
 export const getPopularHotels = asyncHandler(async (req, res) => {
     try {
         const hotels = loadHotelsFromJSON();
-        
+
         // Sort by rating and limit to top 6
         const popularHotels = hotels
             .sort((a, b) => b.rating - a.rating)
             .slice(0, 6);
-        
+
         res.json({ hotels: popularHotels });
     } catch (error) {
         console.error('Error fetching popular hotels:', error);
@@ -87,15 +87,36 @@ export const bookHotelRoom = asyncHandler(async (req, res) => {
     const { hotel_id, checkin_date, checkout_date, guests, total_amount, special_requests } = req.body;
     const userId = req.user.user_id;
 
+    if (!checkin_date || checkin_date === '' || !checkout_date || checkout_date === '') {
+        res.status(400).json({ error: 'Check-in and check-out dates are required' });
+        return;
+    }
+    
+    const hotels = loadHotelsFromJSON();
+    const hotel = hotels.find(h => h.id.toString() === hotel_id.toString());
+
+    if (!hotel) {
+        res.status(404).json({ error: 'Hotel not found' });
+        return;
+    }
+
     try {
         // Create hotel booking record in database
         const booking = await db.one(`
             INSERT INTO hotel_bookings (
-                user_id, hotel_id, check_in_date, check_out_date, 
-                guests, total_amount, special_requests, status, created_at
-            ) VALUES ($1, $2, $3, $4, $5, $6, $7, 'confirmed', NOW())
+            user_id, hotel_id, check_in_date, check_out_date, 
+            guests, total_amount, special_requests, status, created_at
+        ) VALUES ($1, $2, $3::date, $4::date, $5, $6, $7, 'confirmed', NOW())
             RETURNING *
-        `, [userId, hotel_id, checkin_date, checkout_date, guests, total_amount, special_requests]);
+        `, [
+            userId,
+            hotel_id,
+            checkin_date && checkin_date !== '' ? checkin_date : null,
+            checkout_date && checkout_date !== '' ? checkout_date : null,
+            guests,
+            total_amount,
+            special_requests
+        ]);
 
         res.status(201).json({
             message: 'Hotel booked successfully',

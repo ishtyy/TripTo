@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { Search, Package, MapPin, Calendar, Users, DollarSign, Loader2, RotateCcw, Eye, ShoppingCart, X } from 'lucide-react';
 import api from '../../services/api';
+import { useBooking } from '../../context/BookingContext';
 import toast from 'react-hot-toast';
 import PackageBookingModal from './PackageBookingModal';
 
@@ -12,6 +13,27 @@ export default function PackageSearch() {
     const [searchPerformed, setSearchPerformed] = useState(false);
     const [selectedPackage, setSelectedPackage] = useState(null);
     const [showBookingModal, setShowBookingModal] = useState(false);
+
+    const { addPackageToCart } = useBooking();
+
+    const handleAddToCart = (packageBooking) => {
+        const cartItem = {
+            id: packageBooking.package_id, // Use package_id directly as ID
+            package_id: packageBooking.package_id,
+            package_name: packageBooking.package_name,
+            destination: packageBooking.destination,
+            start_date: packageBooking.start_date,
+            end_date: packageBooking.end_date,
+            total_price: packageBooking.total_price,
+            group_size: packageBooking.group_size,
+            description: packageBooking.description,
+            flights: packageBooking.flights || [],
+            hotels: packageBooking.hotels || [],
+            activities: packageBooking.activities || []
+        };
+
+        addPackageToCart(cartItem);
+    };
 
     // Load packages on component mount
     useEffect(() => {
@@ -67,7 +89,7 @@ export default function PackageSearch() {
         if (month) {
             searchParams.month = month;
         }
-        
+
         loadPackages(searchParams);
     };
 
@@ -84,7 +106,7 @@ export default function PackageSearch() {
     const formatDate = (dateString) => {
         return new Date(dateString).toLocaleDateString('en-US', {
             year: 'numeric',
-            month: 'long', 
+            month: 'long',
             day: 'numeric'
         });
     };
@@ -103,7 +125,7 @@ export default function PackageSearch() {
     const handleBookingComplete = (bookingResult) => {
         setShowBookingModal(false);
         setSelectedPackage(null);
-        
+
         // Show success message with coupon info if available
         if (bookingResult.flight_discount_coupon) {
             toast.success(
@@ -127,7 +149,7 @@ export default function PackageSearch() {
 
                 setSelectedPackage({
                     // Keep original response data structure, but add filtered modules
-                    ...response.data, 
+                    ...response.data,
                     package: packageDetails, // Ensure 'package' object is preserved
                     flights: flights,
                     hotels: hotels,
@@ -146,28 +168,28 @@ export default function PackageSearch() {
             <div className="grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
                 <div>
                     <label className="block text-sm font-medium text-gray-300 mb-1.5">Destination</label>
-                    <input 
-                        type="text" 
-                        placeholder="e.g., Tokyo, Japan" 
+                    <input
+                        type="text"
+                        placeholder="e.g., Tokyo, Japan"
                         value={destination}
                         onChange={(e) => setDestination(e.target.value)}
                         onKeyPress={handleKeyPress}
-                        className="w-full px-4 py-3 rounded-lg bg-gray-800 text-white placeholder-gray-500 border-2 border-gray-700 focus:outline-none focus:border-cyan-500 transition-colors" 
+                        className="w-full px-4 py-3 rounded-lg bg-gray-800 text-white placeholder-gray-500 border-2 border-gray-700 focus:outline-none focus:border-cyan-500 transition-colors"
                     />
                 </div>
                 <div>
                     <label className="block text-sm font-medium text-gray-300 mb-1.5">Month</label>
-                    <input 
-                        type="month" 
+                    <input
+                        type="month"
                         value={month}
                         onChange={(e) => setMonth(e.target.value)}
                         onKeyPress={handleKeyPress}
-                        className="w-full px-4 py-3 rounded-lg bg-gray-800 text-white border-2 border-gray-700 focus:outline-none focus:border-cyan-500 transition-colors dark-calendar-picker" 
+                        className="w-full px-4 py-3 rounded-lg bg-gray-800 text-white border-2 border-gray-700 focus:outline-none focus:border-cyan-500 transition-colors dark-calendar-picker"
                     />
                 </div>
                 <div className="flex gap-2">
-                    <button 
-                        onClick={handleSearch} 
+                    <button
+                        onClick={handleSearch}
                         disabled={loading}
                         className="flex-1 px-6 py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-purple-400 text-white rounded-lg font-semibold transition-all duration-200 shadow-lg shadow-purple-600/20 flex items-center justify-center gap-2"
                     >
@@ -176,8 +198,8 @@ export default function PackageSearch() {
                     </button>
                 </div>
                 <div className="flex gap-2">
-                    <button 
-                        onClick={handleShowAll} 
+                    <button
+                        onClick={handleShowAll}
                         disabled={loading}
                         className="flex-1 px-6 py-3 bg-gray-600 hover:bg-gray-700 disabled:bg-gray-400 text-white rounded-lg font-semibold transition-all duration-200 flex items-center justify-center gap-2"
                     >
@@ -241,7 +263,7 @@ export default function PackageSearch() {
                             <p className="text-sm">
                                 {hasActiveFilters ? 'Try adjusting your search criteria or ' : 'Check back later for new packages'}
                                 {hasActiveFilters && (
-                                    <button 
+                                    <button
                                         onClick={handleShowAll}
                                         className="text-purple-400 hover:text-purple-300 underline"
                                     >
@@ -254,15 +276,15 @@ export default function PackageSearch() {
                         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                             {packages.map((pkg) => (
                                 <div key={pkg.package_id} className="bg-gray-800/50 border border-gray-700 rounded-xl p-6 hover:border-purple-500/50 transition-all duration-200 cursor-pointer"
-                                     onClick={() => handlePackageSelect(pkg.package_id)}>
+                                    onClick={() => handlePackageSelect(pkg.package_id)}>
                                     <div className="space-y-4">
                                         <div className="flex justify-between items-start">
                                             <h4 className="text-lg font-semibold text-white">{pkg.title}</h4>
                                             <span className="text-purple-400 font-bold text-xl">{formatPrice(pkg.price)}</span>
                                         </div>
-                                        
+
                                         <p className="text-gray-300 text-sm line-clamp-2">{pkg.description}</p>
-                                        
+
                                         <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 text-sm">
                                             <div className="flex items-center gap-2 text-gray-400">
                                                 <MapPin size={16} />
@@ -301,14 +323,14 @@ export default function PackageSearch() {
                     <div className="bg-gray-900 rounded-xl max-w-4xl w-full max-h-[90vh] overflow-auto">
                         <div className="p-6 border-b border-gray-700 flex justify-between items-center">
                             <h3 className="text-xl font-semibold text-white">{selectedPackage.package.title}</h3>
-                            <button 
+                            <button
                                 onClick={() => setSelectedPackage(null)}
                                 className="text-gray-400 hover:text-white"
                             >
                                 ✕
                             </button>
                         </div>
-                        
+
                         <div className="p-6 space-y-6">
                             {/* Package Info */}
                             <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -409,13 +431,35 @@ export default function PackageSearch() {
                                 </div>
                             )}
 
-                            <div className="pt-4 border-t border-gray-700">
-                                <button 
-                                    onClick={handleBookPackage}
-                                    className="w-full bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
+                            <div className="pt-4 border-t border-gray-700 flex gap-3">
+                                <button
+                                    onClick={() => {
+                                        handleAddToCart({
+                                            package_id: selectedPackage.package.package_id,
+                                            package_name: selectedPackage.package.title,
+                                            destination: `${selectedPackage.package.location_name}, ${selectedPackage.package.country}`,
+                                            start_date: selectedPackage.package.start_date,
+                                            end_date: selectedPackage.package.end_date,
+                                            total_price: selectedPackage.package.price,
+                                            group_size: selectedPackage.package.group_size,
+                                            description: selectedPackage.package.description,
+                                            flights: selectedPackage.flights,
+                                            hotels: selectedPackage.hotels,
+                                            activities: selectedPackage.activities
+                                        });
+                                        setSelectedPackage(null);
+                                        toast.success('Package added to cart!');
+                                    }}
+                                    className="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
                                 >
                                     <ShoppingCart size={20} />
-                                    Book This Package
+                                    Add to Cart
+                                </button>
+                                <button
+                                    onClick={handleBookPackage}
+                                    className="flex-1 bg-green-600 hover:bg-green-700 text-white py-3 rounded-lg font-semibold transition-colors"
+                                >
+                                    Book Directly
                                 </button>
                             </div>
                         </div>

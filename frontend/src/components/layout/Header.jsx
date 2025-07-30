@@ -6,7 +6,7 @@ import SearchBar from './SearchBar';
 
 export default function Header({ user, onSignOut, onTriggerSignIn, onTriggerSignUp }) {
     // CORRECTED: The function from the context is `openBookingModal`.
-    const { cart, openBookingModal } = useBooking();
+    const { cart, cartItems, pendingBookings, openBookingModal } = useBooking();
     const [showUserMenu, setShowUserMenu] = useState(false);
     const menuRef = useRef(null);
 
@@ -32,18 +32,22 @@ export default function Header({ user, onSignOut, onTriggerSignIn, onTriggerSign
 
             <div className="flex justify-end items-center space-x-6">
                 {/* Itinerary / Shopping Cart Button */}
-                <button 
-                    // CORRECTED: This now correctly calls the function to open the modal.
-                    onClick={() => openBookingModal('cart')} 
+                <button
+                    onClick={() => openBookingModal('cart')}
                     className="relative text-gray-400 hover:text-cyan-300 transition-colors"
-                    title="View Itinerary"
+                    title="View Cart & Pending Bookings"
                 >
                     <ShoppingCart size={22} />
-                    {cart.length > 0 && (
+                    {/* Show cart items count if any, otherwise show pending bookings count */}
+                    {cartItems && cartItems.length > 0 ? (
                         <span className="absolute -top-2 -right-2 bg-purple-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
-                            {cart.length}
+                            {cartItems.length}
                         </span>
-                    )}
+                    ) : pendingBookings && pendingBookings.length > 0 ? (
+                        <span className="absolute -top-2 -right-2 bg-orange-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                            {pendingBookings.length}
+                        </span>
+                    ) : null}
                 </button>
 
                 {/* User Authentication Section */}
@@ -55,21 +59,21 @@ export default function Header({ user, onSignOut, onTriggerSignIn, onTriggerSign
                         <button title="Notifications" className="text-gray-400 hover:text-cyan-300">
                             <Bell size={22} />
                         </button>
-                        
+
                         {/* User Profile Dropdown */}
                         <div className="relative" ref={menuRef}>
-                            <button 
+                            <button
                                 onClick={() => setShowUserMenu(!showUserMenu)}
                                 className="flex items-center gap-2 text-gray-400 hover:text-cyan-300 transition-colors"
                             >
-                                <img 
-                                    src={user.profile_picture_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.username)}&background=22d3ee&color=000&size=36`} 
-                                    alt="User Avatar" 
+                                <img
+                                    src={user.profile_picture_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.username)}&background=22d3ee&color=000&size=36`}
+                                    alt="User Avatar"
                                     className="w-9 h-9 rounded-full border-2 border-cyan-500"
                                 />
                                 <ChevronDown size={16} className={`transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
                             </button>
-                            
+
                             {showUserMenu && (
                                 <div className="absolute right-0 mt-2 w-48 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-50 animate-fade-in">
                                     <div className="p-3 border-b border-gray-700">
@@ -77,7 +81,7 @@ export default function Header({ user, onSignOut, onTriggerSignIn, onTriggerSign
                                         <p className="text-sm text-gray-400">{user.email}</p>
                                     </div>
                                     <div className="py-2">
-                                        <Link 
+                                        <Link
                                             to={`/profile/${user.user_id}`}
                                             onClick={() => setShowUserMenu(false)}
                                             className="flex items-center gap-3 px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
@@ -85,7 +89,7 @@ export default function Header({ user, onSignOut, onTriggerSignIn, onTriggerSign
                                             <User size={16} />
                                             View Profile
                                         </Link>
-                                        <Link 
+                                        <Link
                                             to="/settings"
                                             onClick={() => setShowUserMenu(false)}
                                             className="flex items-center gap-3 px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
@@ -93,7 +97,7 @@ export default function Header({ user, onSignOut, onTriggerSignIn, onTriggerSign
                                             <Settings size={16} />
                                             Settings
                                         </Link>
-                                        <button 
+                                        <button
                                             onClick={() => {
                                                 setShowUserMenu(false);
                                                 onSignOut();

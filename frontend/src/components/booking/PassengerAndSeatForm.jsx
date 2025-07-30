@@ -11,45 +11,77 @@ const Seat = ({ number, isOccupied, isSelected, onSelect }) => {
     return <div className={seatClass} onClick={() => !isOccupied && onSelect(number)}><Armchair className="mx-auto" /><span className="text-xs font-mono">{number}</span></div>;
 };
 
-export default function PassengerAndSeatForm() {
-    const { currentFlight, addPassengerAndSeatInfo, passengers, selectedSeats } = useBooking(); // Get passengers and selectedSeats to pre-fill
+export default function PassengerAndSeatForm({ flight = null, onSubmit = null }) {
+    const { currentFlight, addPassengerAndSeatInfo, passengers, selectedSeats } = useBooking();
+    
+    const targetFlight = flight || currentFlight;
+    
     const { register, handleSubmit, formState: { errors } } = useForm({
-        defaultValues: { // Pre-fill form if data exists for this flight
-            firstName: passengers[currentFlight?.id]?.firstName || '',
-            lastName: passengers[currentFlight?.id]?.lastName || '',
-            gender: passengers[currentFlight?.id]?.gender || '',
-            type: passengers[currentFlight?.id]?.type || ''
+        defaultValues: {
+            firstName: passengers[targetFlight?.id]?.firstName || '',
+            lastName: passengers[targetFlight?.id]?.lastName || '',
+            gender: passengers[targetFlight?.id]?.gender || '',
+            type: passengers[targetFlight?.id]?.type || ''
         }
     });
-    const [selectedSeat, setSelectedSeat] = useState(selectedSeats[currentFlight?.id] || null); // Pre-fill selected seat
-    const occupiedSeats = ['3A', '8C', '5B']; // Dummy occupied seats
 
-    const onSubmit = (data) => {
+    const [selectedSeat, setSelectedSeat] = useState(selectedSeats[targetFlight?.id] || null);
+    const occupiedSeats = ['3A', '8C', '5B'];
+
+    const handleFormSubmit = (data) => {
         if (!selectedSeat) {
-            alert("Please select a seat."); // Consider using toast for better UX
+            alert("Please select a seat.");
             return;
         }
-        addPassengerAndSeatInfo(currentFlight.id, data, selectedSeat);
+        
+        if (onSubmit) {
+            onSubmit(targetFlight.id, data, selectedSeat);
+        } else {
+            addPassengerAndSeatInfo(targetFlight.id, data, selectedSeat);
+        }
     };
 
-    if (!currentFlight) return <p className="text-gray-400">Loading flight information...</p>;
+    if (!targetFlight) return <p className="text-gray-400">Loading flight information...</p>;
 
-    const firstLeg = currentFlight.legs[0];
-    const lastLeg = currentFlight.legs[currentFlight.legs.length - 1];
+    // Fix the flight details display
+    const getFlightDisplay = () => {
+        if (targetFlight.legs && targetFlight.legs.length > 0) {
+            const firstLeg = targetFlight.legs[0];
+            const lastLeg = targetFlight.legs[targetFlight.legs.length - 1];
+            return {
+                airline: targetFlight.airline?.name || 'Unknown Airline',
+                number: targetFlight.number || 'N/A',
+                departure: firstLeg.departure?.airport?.iataCode || 'N/A',
+                arrival: lastLeg.arrival?.airport?.iataCode || 'N/A'
+            };
+        } else {
+            // Handle simplified flight structure from cart
+            return {
+                airline: targetFlight.airline?.name || targetFlight.data?.airline?.name || 'Unknown Airline',
+                number: targetFlight.number || targetFlight.data?.number || 'N/A',
+                departure: targetFlight.departure_airport || targetFlight.data?.departure_airport || 'N/A',
+                arrival: targetFlight.arrival_airport || targetFlight.data?.arrival_airport || 'N/A'
+            };
+        }
+    };
+
+    const flightDisplay = getFlightDisplay();
 
     return (
         <div className="animate-fade-in-up">
             <div className="bg-gray-800/50 p-4 rounded-xl border border-gray-700 mb-6">
-                <p className="font-bold text-white">{currentFlight.airline.name} {currentFlight.number}</p>
+                <p className="font-bold text-white">{flightDisplay.airline} {flightDisplay.number}</p>
                 <div className="flex items-center gap-2 text-sm text-gray-400">
-                    <span>{firstLeg.departure.airport.iataCode}</span><ArrowRight size={16}/><span>{lastLeg.arrival.airport.iataCode}</span>
+                    <span>{flightDisplay.departure}</span>
+                    <ArrowRight size={16}/>
+                    <span>{flightDisplay.arrival}</span>
                 </div>
-                {/* Display master flight details here */}
                 <div className="mt-2 text-xs text-gray-500">
-                    <p>Class: {currentFlight.flight_class || 'N/A'} | Seat: {currentFlight.seat_number || 'N/A'} | Gate: {currentFlight.gate || 'N/A'} | Terminal: {currentFlight.terminal || 'N/A'}</p>
+                    <p>Class: {targetFlight.flight_class || 'N/A'} | Seat: {targetFlight.seat_number || 'N/A'} | Gate: {targetFlight.gate || 'N/A'} | Terminal: {targetFlight.terminal || 'N/A'}</p>
                 </div>
             </div>
-            <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+            
+            <form onSubmit={handleSubmit(handleFormSubmit)} className="space-y-6">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                     <div>
                         <label className="block text-sm font-medium text-gray-300">First Name</label>
@@ -89,7 +121,9 @@ export default function PassengerAndSeatForm() {
                         <Seat key={seat} number={seat} isOccupied={occupiedSeats.includes(seat)} isSelected={selectedSeat === seat} onSelect={setSelectedSeat} />
                     ))}
                 </div>
-                <button type="submit" className="w-full px-8 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold mt-6">Confirm Details for this Flight</button>
+                <button type="submit" className="w-full px-8 py-3 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold mt-6">
+                    Confirm Details for this Flight
+                </button>
             </form>
         </div>
     );

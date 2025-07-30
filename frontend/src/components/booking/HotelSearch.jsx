@@ -1,13 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { Search, MapPin, Users, Calendar, Star, DollarSign, Wifi, Car, Coffee, Utensils, Zap, Building2 } from 'lucide-react';
 import { hotelAPI } from '../../services/api';
+import { useBooking } from '../../context/BookingContext';
 import toast from 'react-hot-toast';
 
 export default function HotelSearch() {
   const [searchParams, setSearchParams] = useState({
     destination: '',
-    checkin: '',
-    checkout: '',
+    checkin: new Date().toISOString().split('T')[0], // Today's date
+    checkout: new Date(Date.now() + 24 * 60 * 60 * 1000).toISOString().split('T')[0], // Tomorrow
     guests: 2
   });
   const [hotels, setHotels] = useState([]);
@@ -16,6 +17,21 @@ export default function HotelSearch() {
   const [showResults, setShowResults] = useState(false);
   const [selectedHotel, setSelectedHotel] = useState(null);
   const [showBookingModal, setShowBookingModal] = useState(false);
+
+  const { addHotelToCart } = useBooking();
+
+  const handleAddToCart = (hotelBooking) => {
+    addHotelToCart({
+      id: `hotel_${hotelBooking.hotel_id}_${Date.now()}`,
+      hotel_name: hotelBooking.hotel_name,
+      room_type: hotelBooking.room_type,
+      guests: hotelBooking.guests,
+      check_in_date: hotelBooking.check_in_date,
+      check_out_date: hotelBooking.check_out_date,
+      total_price: hotelBooking.total_price,
+      // ... other hotel details
+    });
+  };
 
   useEffect(() => {
     loadPopularHotels();
@@ -33,6 +49,22 @@ export default function HotelSearch() {
   const handleSearch = async () => {
     if (!searchParams.destination || !searchParams.checkin || !searchParams.checkout) {
       toast.error('Please fill in all required fields');
+      return;
+    }
+
+    // Validate dates
+    const checkinDate = new Date(searchParams.checkin);
+    const checkoutDate = new Date(searchParams.checkout);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (checkinDate < today) {
+      toast.error('Check-in date cannot be in the past');
+      return;
+    }
+
+    if (checkoutDate <= checkinDate) {
+      toast.error('Check-out date must be after check-in date');
       return;
     }
 
@@ -55,6 +87,11 @@ export default function HotelSearch() {
   };
 
   const confirmBooking = async () => {
+    if (!searchParams.checkin || !searchParams.checkout || searchParams.checkin === '' || searchParams.checkout === '') {
+      toast.error('Please select check-in and check-out dates');
+      return;
+    }
+
     try {
       const bookingData = {
         hotel_id: selectedHotel.id,
@@ -97,48 +134,50 @@ export default function HotelSearch() {
       <div className="grid grid-cols-1 md:grid-cols-5 gap-4 items-end">
         <div className="md:col-span-2">
           <label className="block text-sm font-medium text-gray-300 mb-1.5">Destination</label>
-          <input 
-            type="text" 
-            placeholder="e.g., Paris, France" 
+          <input
+            type="text"
+            placeholder="e.g., Paris, France"
             value={searchParams.destination}
-            onChange={(e) => setSearchParams({...searchParams, destination: e.target.value})}
-            className="w-full px-4 py-3 rounded-lg bg-gray-800 text-white placeholder-gray-500 border-2 border-gray-700 focus:outline-none focus:border-cyan-500 transition-colors" 
+            onChange={(e) => setSearchParams({ ...searchParams, destination: e.target.value })}
+            className="w-full px-4 py-3 rounded-lg bg-gray-800 text-white placeholder-gray-500 border-2 border-gray-700 focus:outline-none focus:border-cyan-500 transition-colors"
           />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-300 mb-1.5">Check-in</label>
-          <input 
-            type="date" 
+          <input
+            type="date"
             value={searchParams.checkin}
-            onChange={(e) => setSearchParams({...searchParams, checkin: e.target.value})}
-            className="w-full px-4 py-3 rounded-lg bg-gray-800 text-white border-2 border-gray-700 focus:outline-none focus:border-cyan-500 transition-colors dark-calendar-picker" 
+            min={new Date().toISOString().split('T')[0]}
+            onChange={(e) => setSearchParams({ ...searchParams, checkin: e.target.value })}
+            className="w-full px-4 py-3 rounded-lg bg-gray-800 text-white border-2 border-gray-700 focus:outline-none focus:border-cyan-500 transition-colors dark-calendar-picker"
           />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-300 mb-1.5">Check-out</label>
-          <input 
-            type="date" 
+          <input
+            type="date"
             value={searchParams.checkout}
-            onChange={(e) => setSearchParams({...searchParams, checkout: e.target.value})}
-            className="w-full px-4 py-3 rounded-lg bg-gray-800 text-white border-2 border-gray-700 focus:outline-none focus:border-cyan-500 transition-colors dark-calendar-picker" 
+            min={searchParams.checkin || new Date().toISOString().split('T')[0]}
+            onChange={(e) => setSearchParams({ ...searchParams, checkout: e.target.value })}
+            className="w-full px-4 py-3 rounded-lg bg-gray-800 text-white border-2 border-gray-700 focus:outline-none focus:border-cyan-500 transition-colors dark-calendar-picker"
           />
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-300 mb-1.5">Guests</label>
-          <select 
+          <select
             value={searchParams.guests}
-            onChange={(e) => setSearchParams({...searchParams, guests: parseInt(e.target.value)})}
+            onChange={(e) => setSearchParams({ ...searchParams, guests: parseInt(e.target.value) })}
             className="w-full px-4 py-3 rounded-lg bg-gray-800 text-white border-2 border-gray-700 focus:outline-none focus:border-cyan-500 transition-colors"
           >
-            {[1,2,3,4,5,6].map(num => (
+            {[1, 2, 3, 4, 5, 6].map(num => (
               <option key={num} value={num}>{num} Guest{num > 1 ? 's' : ''}</option>
             ))}
           </select>
         </div>
       </div>
-      
-      <button 
-        onClick={handleSearch} 
+
+      <button
+        onClick={handleSearch}
         disabled={loading}
         className="w-full md:w-auto px-8 py-3 bg-purple-600 hover:bg-purple-700 disabled:bg-gray-600 text-white rounded-lg font-semibold transition-all duration-200 shadow-lg shadow-purple-600/20 flex items-center justify-center gap-2"
       >
@@ -168,7 +207,7 @@ export default function HotelSearch() {
             <h3 className="text-xl font-semibold text-white">
               {hotels.length} Hotels Found in {searchParams.destination}
             </h3>
-            <button 
+            <button
               onClick={() => setShowResults(false)}
               className="text-cyan-400 hover:text-cyan-300"
             >
@@ -222,13 +261,13 @@ export default function HotelSearch() {
               </div>
             </div>
             <div className="flex gap-3 mt-6">
-              <button 
+              <button
                 onClick={() => setShowBookingModal(false)}
                 className="flex-1 px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded-lg transition-colors"
               >
                 Cancel
               </button>
-              <button 
+              <button
                 onClick={confirmBooking}
                 className="flex-1 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg transition-colors"
               >
@@ -266,7 +305,7 @@ function HotelCard({ hotel, onBook }) {
             <span className="text-sm text-gray-300">{hotel.rating}</span>
           </div>
         </div>
-        
+
         <div className="flex items-center gap-2 text-gray-400 text-sm">
           <MapPin size={14} />
           <span>{hotel.location}</span>
@@ -291,7 +330,7 @@ function HotelCard({ hotel, onBook }) {
             <span className="text-lg font-semibold">${hotel.price_per_night}</span>
             <span className="text-sm text-gray-400">/night</span>
           </div>
-          <button 
+          <button
             onClick={onBook}
             className="px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg text-sm font-medium transition-colors"
           >

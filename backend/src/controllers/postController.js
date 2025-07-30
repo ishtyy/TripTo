@@ -51,7 +51,7 @@ export const getPostsWithUserVote = async (query, params, req) => {
                 SELECT bpt.post_id, bt.tag_id, bt.tag_name, bt.color
                 FROM blog_post_tags bpt
                 JOIN blog_tags bt ON bpt.tag_id = bt.tag_id
-                WHERE bpt.post_id = ANY($1)
+                WHERE bpt.post_id = ANY($1::uuid[])
             `, [postIds]);
             
             // Group tags by post_id
@@ -72,18 +72,18 @@ export const getPostsWithUserVote = async (query, params, req) => {
                 post.tags = tagsByPost.get(post.post_id) || [];
             });
         } catch (error) {
-            console.log('Tags table not found or error fetching tags:', error);
+            console.error('Tags table not found or error fetching tags:', error);
         }
     }
     
     if (userId && transformedPosts.length > 0) {
         const postIds = transformedPosts.map(p => p.post_id);
         try {
-            const votes = await db.any('SELECT post_id, vote_type FROM blog_post_votes WHERE user_id = $1 AND post_id = ANY($2)', [userId, postIds]);
+            const votes = await db.any('SELECT post_id, vote_type FROM blog_post_votes WHERE user_id = $1 AND post_id = ANY($2::uuid[])', [userId, postIds]);
             const voteMap = new Map(votes.map(v => [v.post_id, v.vote_type]));
             transformedPosts.forEach(p => { p.user_vote = voteMap.get(p.post_id) || null; });
         } catch (error) {
-            console.log('Votes table not found, continuing without user votes');
+            console.error('error here', error);
         }
     }
     return transformedPosts;

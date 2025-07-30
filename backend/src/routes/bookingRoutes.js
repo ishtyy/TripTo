@@ -8,7 +8,8 @@ import {
     addFlightToItinerary,
     getMyBookingHistory,
     removeFlightFromItinerary, // Export the new remove function
-    updateItineraryItemDetails // Export the new update function
+    updateItineraryItemDetails,
+    getComprehensiveItinerary 
 } from '../controllers/bookingController.js';
 
 import { checkJwtMiddleware, requireRole } from '../middleware/authMiddleware.js';
@@ -33,5 +34,8 @@ router.route('/admin/all').get(checkJwtMiddleware, requireRole('admin'), getAllB
 // Other routes
 router.route('/:id').get(checkJwtMiddleware, getBookingById);
 router.route('/user/:userId').get(checkJwtMiddleware, getBookingsByUser);
+router.get('/itinerary/comprehensive', checkJwtMiddleware, getComprehensiveItinerary);
+
+
 
 export default router;
