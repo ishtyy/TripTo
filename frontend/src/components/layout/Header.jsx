@@ -1,12 +1,25 @@
-import React from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Link } from 'react-router-dom';
-import { ShoppingCart, Bell, Inbox } from 'lucide-react';
+import { ShoppingCart, Bell, Inbox, Settings, LogOut, User, ChevronDown } from 'lucide-react';
 import { useBooking } from '../../context/BookingContext';
 import SearchBar from './SearchBar';
 
 export default function Header({ user, onSignOut, onTriggerSignIn, onTriggerSignUp }) {
     // CORRECTED: The function from the context is `openBookingModal`.
     const { cart, openBookingModal } = useBooking();
+    const [showUserMenu, setShowUserMenu] = useState(false);
+    const menuRef = useRef(null);
+
+    // Close menu when clicking outside
+    useEffect(() => {
+        function handleClickOutside(event) {
+            if (menuRef.current && !menuRef.current.contains(event.target)) {
+                setShowUserMenu(false);
+            }
+        }
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
 
     return (
         <header className="bg-gray-900/50 border-b border-gray-800 px-6 py-2 grid grid-cols-3 items-center sticky top-0 z-50 backdrop-blur-sm">
@@ -42,13 +55,58 @@ export default function Header({ user, onSignOut, onTriggerSignIn, onTriggerSign
                         <button title="Notifications" className="text-gray-400 hover:text-cyan-300">
                             <Bell size={22} />
                         </button>
-                        <Link to={`/profile/${user.user_id}`} title="View Profile">
-                            <img 
-                                src={user.profile_picture_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.username)}&background=22d3ee&color=000&size=36`} 
-                                alt="User Avatar" 
-                                className="w-9 h-9 rounded-full border-2 border-cyan-500"
-                            />
-                        </Link>
+                        
+                        {/* User Profile Dropdown */}
+                        <div className="relative" ref={menuRef}>
+                            <button 
+                                onClick={() => setShowUserMenu(!showUserMenu)}
+                                className="flex items-center gap-2 text-gray-400 hover:text-cyan-300 transition-colors"
+                            >
+                                <img 
+                                    src={user.profile_picture_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(user.username)}&background=22d3ee&color=000&size=36`} 
+                                    alt="User Avatar" 
+                                    className="w-9 h-9 rounded-full border-2 border-cyan-500"
+                                />
+                                <ChevronDown size={16} className={`transition-transform ${showUserMenu ? 'rotate-180' : ''}`} />
+                            </button>
+                            
+                            {showUserMenu && (
+                                <div className="absolute right-0 mt-2 w-48 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-50 animate-fade-in">
+                                    <div className="p-3 border-b border-gray-700">
+                                        <p className="font-semibold text-white">{user.username}</p>
+                                        <p className="text-sm text-gray-400">{user.email}</p>
+                                    </div>
+                                    <div className="py-2">
+                                        <Link 
+                                            to={`/profile/${user.user_id}`}
+                                            onClick={() => setShowUserMenu(false)}
+                                            className="flex items-center gap-3 px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
+                                        >
+                                            <User size={16} />
+                                            View Profile
+                                        </Link>
+                                        <Link 
+                                            to="/settings"
+                                            onClick={() => setShowUserMenu(false)}
+                                            className="flex items-center gap-3 px-4 py-2 text-gray-300 hover:bg-gray-700 hover:text-white transition-colors"
+                                        >
+                                            <Settings size={16} />
+                                            Settings
+                                        </Link>
+                                        <button 
+                                            onClick={() => {
+                                                setShowUserMenu(false);
+                                                onSignOut();
+                                            }}
+                                            className="flex items-center gap-3 px-4 py-2 text-gray-300 hover:bg-red-900/50 hover:text-red-400 transition-colors w-full text-left"
+                                        >
+                                            <LogOut size={16} />
+                                            Sign Out
+                                        </button>
+                                    </div>
+                                </div>
+                            )}
+                        </div>
                     </>
                 ) : (
                     <div className="flex items-center gap-4">

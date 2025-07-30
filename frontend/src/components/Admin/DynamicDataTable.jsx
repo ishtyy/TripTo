@@ -34,8 +34,19 @@ export const DynamicDataTable = ({ endpoint, columns, searchPlaceholder, itemKey
                 url.searchParams.append('status', urlParams.get('status'));
             }
 
-
             const { data: response } = await api.get(url.pathname + url.search); // Use pathname and search for correct URL
+
+            // // DEBUG LOGS - Add these to debug the duplicate issue
+            // console.log('🔍 RAW DATA from API:', response.data);
+            // console.log('🔍 Endpoint:', endpoint);
+            // console.log('🔍 ItemKey:', itemKey);
+
+            // Check for duplicates in raw data
+            const rawIds = response.data.map(item => item[itemKey]);
+            const duplicateIds = rawIds.filter((id, index, self) => self.indexOf(id) !== index);
+            if (duplicateIds.length > 0) {
+                console.warn('⚠️ DUPLICATE IDS FOUND in API response:', duplicateIds);
+            }
 
             setData(response.data);
             setTotalPages(response.totalPages);
@@ -52,7 +63,7 @@ export const DynamicDataTable = ({ endpoint, columns, searchPlaceholder, itemKey
         } finally {
             setLoading(false);
         }
-    }, [currentPage, debouncedSearchTerm, sortBy, sortOrder, endpoint]);
+    }, [currentPage, debouncedSearchTerm, sortBy, sortOrder, endpoint, itemKey]);
 
     useEffect(() => {
         fetchData();
@@ -76,11 +87,31 @@ export const DynamicDataTable = ({ endpoint, columns, searchPlaceholder, itemKey
         actionFn(itemData, fetchData); // Pass the itemData (which is the ID) and fetchData for refresh
     };
 
+    // DEDUPLICATION - Add this before rendering
+    const uniqueData = data.filter((item, index, self) =>
+        index === self.findIndex(i => i[itemKey] === item[itemKey])
+    );
+
+    // DEBUG LOG for deduplication
+    if (data.length !== uniqueData.length) {
+        console.warn(`🔧 DEDUPLICATION: Removed ${data.length - uniqueData.length} duplicate(s)`);
+        console.log('📊 Original data length:', data.length);
+        console.log('📊 Unique data length:', uniqueData.length);
+    }
+
+    // console.log('🎯 FINAL RENDER DATA:', {
+    //     endpoint,
+    //     itemKey,
+    //     dataLength: data.length,
+    //     uniqueDataLength: uniqueData.length,
+    //     sampleKeys: uniqueData.slice(0, 3).map(item => item[itemKey])
+    // });
+
     return (
         <div className="bg-gray-800/50 rounded-xl border border-gray-700/50 overflow-hidden">
             <div className="p-4">
                 <div className="relative">
-                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18}/>
+                    <Search className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-500" size={18} />
                     <input
                         type="text"
                         placeholder={searchPlaceholder}
@@ -103,7 +134,7 @@ export const DynamicDataTable = ({ endpoint, columns, searchPlaceholder, itemKey
                                 >
                                     <div className="flex items-center">
                                         {col.header}
-                                        {sortBy === col.accessor && (sortOrder === 'asc' ? <ArrowUp size={14} className="ml-1"/> : <ArrowDown size={14} className="ml-1"/>)}
+                                        {sortBy === col.accessor && (sortOrder === 'asc' ? <ArrowUp size={14} className="ml-1" /> : <ArrowDown size={14} className="ml-1" />)}
                                     </div>
                                 </th>
                             ))}
@@ -112,27 +143,27 @@ export const DynamicDataTable = ({ endpoint, columns, searchPlaceholder, itemKey
                     </thead>
                     <tbody>
                         {loading ? (
-                            <tr><td colSpan={columns.length + 1} className="text-center p-8"><Loader2 className="animate-spin inline-block text-yellow-400"/> <span className="ml-2">Loading data...</span></td></tr>
-                        ) : data.length === 0 ? (
+                            <tr><td colSpan={columns.length + 1} className="text-center p-8"><Loader2 className="animate-spin inline-block text-yellow-400" /> <span className="ml-2">Loading data...</span></td></tr>
+                        ) : uniqueData.length === 0 ? (
                             <tr><td colSpan={columns.length + 1} className="text-center p-8 text-gray-400">No data found.</td></tr>
-                        ) : data.map(item => (
-                            <tr key={item[itemKey]} className="border-b border-gray-800 hover:bg-gray-800/40">
+                        ) : uniqueData.map((item, index) => (
+                            <tr key={`${item[itemKey]}-${index}`} className="border-b border-gray-800 hover:bg-gray-800/40">
                                 {columns.map(col => (
                                     <td key={`${item[itemKey]}-${col.accessor}`} className="px-6 py-4">
                                         {col.type === 'date'
                                             ? item[col.accessor] ? new Date(item[col.accessor]).toLocaleDateString() : 'N/A'
                                             : col.type === 'currency'
-                                            ? item[col.accessor] ? `$${parseFloat(item[col.accessor]).toFixed(2)}` : 'N/A'
-                                            : item[col.accessor] || 'N/A'
+                                                ? item[col.accessor] ? `$${parseFloat(item[col.accessor]).toFixed(2)}` : 'N/A'
+                                                : item[col.accessor] || 'N/A'
                                         }
                                     </td>
                                 ))}
                                 <td className="px-6 py-4 flex items-center justify-end space-x-2">
-                                    {actions.map((action, index) => (
+                                    {actions.map((action, actionIndex) => (
                                         // Conditionally render action button based on isVisible prop
                                         (action.isVisible ? action.isVisible(item) : true) && (
                                             <button
-                                                key={action.label + index} // Use label+index for unique key
+                                                key={`${action.label}-${actionIndex}-${item[itemKey]}`} // More unique key
                                                 onClick={() => executeAction(action.action, item[itemKey])} // Pass item[itemKey] (the ID)
                                                 className="p-2 rounded-md hover:bg-gray-700 transition-colors text-white"
                                                 title={action.label}
@@ -150,8 +181,8 @@ export const DynamicDataTable = ({ endpoint, columns, searchPlaceholder, itemKey
             <div className="p-4 flex justify-between items-center text-sm">
                 <p className="text-gray-400">Page {currentPage} of {totalPages}</p>
                 <div className="flex space-x-2">
-                    <button onClick={() => setCurrentPage(p => p - 1)} disabled={currentPage <= 1} className="btn btn-secondary p-2 h-auto text-gray-400 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"><ChevronLeft/></button>
-                    <button onClick={() => setCurrentPage(p => p + 1)} disabled={currentPage >= totalPages} className="btn btn-secondary p-2 h-auto text-gray-400 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"><ChevronRight/></button>
+                    <button onClick={() => setCurrentPage(p => p - 1)} disabled={currentPage <= 1} className="btn btn-secondary p-2 h-auto text-gray-400 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"><ChevronLeft /></button>
+                    <button onClick={() => setCurrentPage(p => p + 1)} disabled={currentPage >= totalPages} className="btn btn-secondary p-2 h-auto text-gray-400 hover:text-white disabled:opacity-50 disabled:cursor-not-allowed"><ChevronRight /></button>
                 </div>
             </div>
         </div>

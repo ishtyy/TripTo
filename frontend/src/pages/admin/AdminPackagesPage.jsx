@@ -29,8 +29,7 @@ export default function AdminPackagesPage() {
         try {
             switch (action) {
                 case 'View':
-                    // TODO: Implement view package details modal
-                    toast.success(`Viewing package ${id}`);
+                    window.open(`/packages/${id}`, '_blank');
                     break;
                 case 'Edit':
                     console.log('Edit clicked for package ID:', id);
@@ -84,9 +83,9 @@ export default function AdminPackagesPage() {
                 searchPlaceholder="Search by package name or destination..."
                 itemKey="package_id"
                 actions={[
-                    { label: 'View', icon: <Eye size={18} />, action: (id, refresh) => handleAction('View', id, refresh) },
-                    { label: 'Edit', icon: <Edit size={18} />, action: (id, refresh) => handleAction('Edit', id, refresh) },
-                    { label: 'Delete', icon: <Trash2 size={18} />, action: (id, refresh) => handleAction('Delete', id, refresh) }
+                    { label: 'View', icon: <Eye size={18} className="text-blue-400" />, action: (id, refresh) => handleAction('View', id, refresh) },
+                    { label: 'Edit', icon: <Edit size={18} className="text-green-400" />, action: (id, refresh) => handleAction('Edit', id, refresh) },
+                    { label: 'Delete', icon: <Trash2 size={18} className="text-red-400" />, action: (id, refresh) => handleAction('Delete', id, refresh) }
                 ]}
             />
 

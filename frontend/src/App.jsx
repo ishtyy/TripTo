@@ -13,6 +13,8 @@ import CommunityPage from "./pages/CommunityPage.jsx";
 import CommunityDetailsPage from "./pages/CommunityDetailsPage.jsx";
 import SearchResultsPage from "./pages/SearchResultsPage.jsx";
 import MessagingPage from "./pages/MessagingPage.jsx";
+import UserSettingsPage from "./pages/UserSettingsPage.jsx";
+import TaggedPostsPage from "./pages/TaggedPostsPage.jsx";
 
 // --- Admin Imports ---
 import AdminLayout from "./components/layout/AdminLayout.jsx";
@@ -23,6 +25,7 @@ import AdminPostsPage from './pages/admin/AdminPostsPage.jsx';
 import AdminCommunitiesPage from './pages/admin/AdminCommunitiesPage.jsx';
 import AdminBookingsPage from './pages/admin/AdminBookingsPage.jsx';
 import AdminPackagesPage from './pages/admin/AdminPackagesPage.jsx';
+import AdminSettingsPage from './pages/admin/AdminSettingsPage.jsx';
 import AdminRoute from "./components/auth/AdminRoute.jsx";
 
 // --- Modals ---
@@ -46,6 +49,8 @@ export default function App() {
     const [isCreateCommunityModalOpen, setIsCreateCommunityModalOpen] = useState(false);
     const [postToView, setPostToView] = useState(null);
     const [postToCascade, setPostToCascade] = useState(null);
+    const [allPosts, setAllPosts] = useState([]);
+    const [currentPostIndex, setCurrentPostIndex] = useState(0);
     const [dataVersion, setDataVersion] = useState(0);
     const refreshData = () => setDataVersion(v => v + 1);
 
@@ -88,7 +93,27 @@ export default function App() {
     const handleSignOut = () => performLogout();
     const handleAdminSignOut = () => performLogout(true);
     const triggerSignIn = () => { setShowSignUpModal(false); setShowSignInModal(true); };
-    const triggerSignUp = () => { setShowSignInModal(false); setShowSignInModal(true); };
+    const triggerSignUp = () => { setShowSignInModal(false); setShowSignUpModal(true); };
+
+    // Enhanced post viewing with navigation
+    const handleViewPost = (post, posts = []) => {
+        if (posts.length > 0) {
+            setAllPosts(posts);
+            const index = posts.findIndex(p => p.post_id === post.post_id);
+            setCurrentPostIndex(index >= 0 ? index : 0);
+        } else {
+            setAllPosts([post]);
+            setCurrentPostIndex(0);
+        }
+        setPostToView(post);
+    };
+
+    const handleNavigatePost = (newIndex) => {
+        if (newIndex >= 0 && newIndex < allPosts.length) {
+            setCurrentPostIndex(newIndex);
+            setPostToView(allPosts[newIndex]);
+        }
+    };
 
     console.log("App.jsx render - Current user state:", user, "loading state:", loading);
 
@@ -119,6 +144,7 @@ export default function App() {
                             <Route path="communities" element={<AdminCommunitiesPage />} />
                             <Route path="bookings" element={<AdminBookingsPage />} />
                             <Route path="packages" element={<AdminPackagesPage />} />
+                            <Route path="settings" element={<AdminSettingsPage />} />
                         </Route> {/* Correct closing tag for AdminLayout's route */}
                     </Route>
 
@@ -134,17 +160,19 @@ export default function App() {
                             />
                         }
                     >
-                        <Route index element={<HomePage user={user} onTriggerSignIn={triggerSignIn} onOpenBlogModal={() => setIsBlogModalOpen(true)} onViewPost={setPostToView} onCascade={setPostToCascade} dataVersion={dataVersion} />} />
-                        <Route path="explore" element={<ExplorePage onViewPost={setPostToView} onCascade={setPostToCascade} user={user} onTriggerSignIn={triggerSignIn} />} />
+                        <Route index element={<HomePage user={user} onTriggerSignIn={triggerSignIn} onOpenBlogModal={() => setIsBlogModalOpen(true)} onViewPost={handleViewPost} onCascade={setPostToCascade} dataVersion={dataVersion} />} />
+                        <Route path="explore" element={<ExplorePage onViewPost={handleViewPost} onCascade={setPostToCascade} user={user} onTriggerSignIn={triggerSignIn} />} />
                         <Route path="search" element={<SearchResultsPage />} />
                         <Route path="book-trip" element={<BookTripPage />} />
-                        <Route path="profile/:userId" element={<ProfilePage loggedInUser={user} onViewPost={setPostToView} onCascade={setPostToCascade} onTriggerSignIn={triggerSignIn} />} />
+                        <Route path="profile/:userId" element={<ProfilePage loggedInUser={user} onViewPost={handleViewPost} onCascade={setPostToCascade} onTriggerSignIn={triggerSignIn} />} />
                         <Route path="profile" element={user ? <Navigate to={`/profile/${user.user_id}`} replace /> : <Navigate to="/" replace />} />
                         <Route path="communities" element={<CommunityPage user={user} onTriggerSignIn={triggerSignIn} onOpenCreateCommunityModal={() => setIsCreateCommunityModalOpen(true)} dataVersion={dataVersion} />} />
                         <Route path="communities/:communityId" element={<CommunityDetailsPage user={user} onTriggerSignIn={triggerSignIn} />} />
                         <Route path="messages" element={<MessagingPage user={user} />}>
                             <Route path=":conversationId" element={<MessagingPage user={user} />} />
                         </Route>
+                        <Route path="settings" element={<UserSettingsPage user={user} onUserUpdate={setUser} />} />
+                        <Route path="tag/:tagName" element={<TaggedPostsPage user={user} onTriggerSignIn={triggerSignIn} />} />
                         <Route path="*" element={<Navigate to="/" replace />} />
                     </Route>
                 </Routes>
@@ -156,7 +184,17 @@ export default function App() {
             <SignUpModal open={showSignUpModal} onClose={() => setShowSignUpModal(false)} onSuccess={handleAuthSuccess} onSwitchToSignIn={triggerSignIn}/>
             <BlogModal open={isBlogModalOpen} onClose={() => setIsBlogModalOpen(false)} onPostCreated={refreshData} user={user} onTriggerSignIn={triggerSignIn} />
             <CommunityCreateModal open={isCreateCommunityModalOpen} onClose={() => setIsCreateCommunityModalOpen(false)} onCommunityCreated={refreshData} user={user} onTriggerSignIn={triggerSignIn} />
-            <ViewPostModal open={!!postToView} onClose={() => setPostToView(null)} post={postToView} loggedInUser={user} onTriggerSignIn={triggerSignIn} onCascade={setPostToCascade} />
+            <ViewPostModal 
+                open={!!postToView} 
+                onClose={() => setPostToView(null)} 
+                post={postToView} 
+                loggedInUser={user} 
+                onTriggerSignIn={triggerSignIn} 
+                onCascade={setPostToCascade} 
+                allPosts={allPosts}
+                currentIndex={currentPostIndex}
+                onNavigate={handleNavigatePost}
+            />
             <CascadeModal open={!!postToCascade} onClose={() => setPostToCascade(null)} parentPost={postToCascade} user={user} onTriggerSignIn={triggerSignIn} onPostCreated={refreshData} />
         </>
     );

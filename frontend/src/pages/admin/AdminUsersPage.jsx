@@ -1,14 +1,20 @@
 // TripTo2/frontend/src/pages/admin/AdminUsersPage.jsx
 
 import React, { useState } from 'react';
-import { DynamicDataTable } from '../../components/Admin/DynamicDataTable';
-import { Eye, UserPlus, Pencil, Trash2, ShieldQuestion, Ban, CheckCircle } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
+import { DynamicDataTable } from '../../components/admin/DynamicDataTable';
+import { Eye, UserPlus, Pencil, Trash2, ShieldQuestion, Ban, CheckCircle, ExternalLink } from 'lucide-react';
 import toast from 'react-hot-toast';
 import ConfirmationModal from '../../components/common/ConfirmationModal';
 import api from '../../services/api';
 
 export default function AdminUsersPage() {
     const [modalState, setModalState] = useState({ confirmOpen: false, selectedId: null, action: null });
+    const navigate = useNavigate();
+
+    const handleViewProfile = (userId) => {
+        navigate(`/profile/${userId}`);
+    };
 
     const handleAction = (type, id, refresh) => {
         setModalState({ ...modalState, confirmOpen: true, action: { type, id, refresh } });
@@ -43,8 +49,7 @@ export default function AdminUsersPage() {
     ];
 
     const userActions = [
-        // { label: 'View Details', icon: <Eye size={18} className="text-blue-400" />, action: (id) => console.log('View user', id) },
-        // { label: 'Edit', icon: <Pencil size={18} className="text-orange-400" />, action: (id) => console.log('Edit user', id) },
+        { label: 'View Profile', icon: <ExternalLink size={18} className="text-blue-400" />, action: (id) => handleViewProfile(id) },
         { label: 'Activate', icon: <CheckCircle size={18} className="text-green-400" />, action: (id, r) => handleAction('active', id, r), isVisible: row => row.status === 'inactive' || row.status === 'banned' },
         { label: 'Deactivate', icon: <Ban size={18} className="text-yellow-400" />, action: (id, r) => handleAction('inactive', id, r), isVisible: row => row.status === 'active' },
         { label: 'Ban', icon: <Ban size={18} className="text-red-400" />, action: (id, r) => handleAction('banned', id, r), isVisible: row => row.status !== 'banned' },

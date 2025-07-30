@@ -1,7 +1,7 @@
 import React from 'react';
-import { DynamicDataTable } from '../../components/Admin/DynamicDataTable';
+import { DynamicDataTable } from '../../components/admin/DynamicDataTable';
 import api from '../../services/api';
-import { Trash2 } from 'lucide-react';
+import { Trash2, ExternalLink } from 'lucide-react';
 
 const postColumns = [
     { header: 'Title', accessor: 'title', sortable: true },
@@ -12,6 +12,14 @@ const postColumns = [
 const deletePost = (id) => api.delete(`/admin/posts/${id}`);
 
 export default function AdminPostsPage() {
+    const [isPostModalOpen, setIsPostModalOpen] = useState(false);
+    const [selectedPostId, setSelectedPostId] = useState(null);
+
+    const handleViewPost = (postId) => {
+        setSelectedPostId(postId);
+        setIsPostModalOpen(true);
+    };
+
     return (
         <div className="p-4 md:p-6">
             <h1 className="text-3xl font-bold text-white mb-6">Blog Post Management</h1>
@@ -20,7 +28,10 @@ export default function AdminPostsPage() {
                 columns={postColumns}
                 searchPlaceholder="Search posts by title or author..."
                 itemKey="post_id"
-                actions={[{ label: 'Delete Post', action: deletePost, icon: <Trash2 size={18} className="text-red-400"/> }]}
+                actions={[
+                    { label: 'View Post', action: handleViewPost, icon: <ExternalLink size={18} className="text-blue-400"/> },
+                    { label: 'Delete Post', action: deletePost, icon: <Trash2 size={18} className="text-red-400"/> }
+                ]}
             />
         </div>
     );

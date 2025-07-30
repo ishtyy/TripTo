@@ -8,7 +8,7 @@ import { notFound, errorHandler } from './middleware/errorHandler.js';
 
 // --- Import All Your Route Files ---
 import bookingRoutes from './routes/bookingRoutes.js';
-import postRoutes from './routes/postRoutes.js';
+import postRoutes from './routes/postsRoutes.js';
 import userRoutes from './routes/userRoutes.js';
 import authRoutes from './routes/authRoutes.js';
 import communityRoutes from './routes/communityRoutes.js';
@@ -19,6 +19,10 @@ import communityPostRoutes from './routes/communityPostRoutes.js';
 import messageRoutes from './routes/messageRoutes.js';
 import packageRoutes from './routes/packageRoutes.js'; // Enabled
 import couponRoutes from './routes/couponRoutes.js';
+import statsRoutes from './routes/statsRoutes.js';
+import hotelRoutes from './routes/hotelRoutes.js';
+import settingsRoutes from './routes/settingsRoutes.js';
+import adminSettingsRoutes from './routes/adminSettingsRoutes.js';
 
 const app = express();
 
@@ -43,6 +47,10 @@ app.use('/api/community-posts', communityPostRoutes);
 app.use('/api/messages', messageRoutes);
 app.use('/api/packages', packageRoutes); // Enabled
 app.use('/api/coupons', couponRoutes);
+app.use('/api/stats', statsRoutes);
+app.use('/api/hotels', hotelRoutes);
+app.use('/api', settingsRoutes);
+app.use('/api', adminSettingsRoutes);
 
 // --- Root Endpoint and Error Handlers ---
 app.get('/', (_req, res) => {

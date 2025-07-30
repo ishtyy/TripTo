@@ -28,50 +28,50 @@ const formatDuration = (minutes) => {
     return `${hours}h ${mins}m`;
 };
 
-// Reusable BoardingPass component for each flight segment
+// Reusable BoardingPass component for each flight segment (Updated to match admin design)
 const BoardingPass = ({ segment, passenger, travelDate }) => {
-    if (!segment) return null;
-
+    console.log('🎫 Rendering User BoardingPass with:', { segment, passenger, travelDate });
+    
+    if (!segment || !segment.origin_iata || !segment.destination_iata) {
+        console.warn('⚠️ BoardingPass: Missing essential segment data:', segment);
+        return (
+            <div className="bg-red-900/50 text-red-200 p-4 rounded border border-red-700 mt-4">
+                <p className="text-sm">❌ Invalid segment data - missing required flight information</p>
+                <pre className="text-xs mt-2 opacity-70">{JSON.stringify(segment, null, 2)}</pre>
+            </div>
+        );
+    }
+    
     return (
-        <div className="bg-white text-gray-800 p-6 rounded-lg shadow-xl border border-blue-200 relative overflow-hidden mt-4">
-            <div className="absolute top-0 left-0 w-full h-full opacity-10 pointer-events-none">
-                <Plane size={150} className="text-blue-500 transform rotate-12 -translate-x-1/4" />
+        <div className="bg-gradient-to-br from-gray-700 to-gray-800 rounded-xl p-4 border border-gray-600 mt-4">
+            <div className="flex justify-between items-center border-b border-dashed border-gray-600 pb-3 mb-4">
+                <h3 className="font-extrabold text-2xl text-orange-500">BOARDING PASS</h3>
+                <span className="flex items-center space-x-2 font-semibold"><PlaneTakeoff size={20} /> {segment.airline || 'Unknown Airline'}</span>
             </div>
-            <div className="flex justify-between items-center border-b border-dashed border-gray-300 pb-4 mb-4 relative z-10">
-                <h3 className="text-2xl font-bold text-blue-700">BOARDING PASS</h3>
-                <span className="text-lg font-mono text-gray-600 flex items-center">
-                    <PlaneTakeoff size={20} className="mr-2 text-blue-500"/> {segment.airline || 'Airline'}
-                </span>
-            </div>
-            <div className="flex items-center justify-between text-center mb-6 px-4 relative z-10">
-                <div className="flex flex-col items-center">
-                    <MapPin size={24} className="text-blue-500 mb-1" />
-                    <span className="text-sm text-gray-600 font-semibold">FROM</span>
-                    <span className="text-3xl font-extrabold text-blue-800">{segment.origin_iata || '???'}</span>
-                    <span className="text-sm text-gray-500">{segment.origin_name || 'Origin'}</span>
+            <div className="flex justify-between items-center text-center mb-4">
+                <div>
+                    <span className="text-4xl font-extrabold leading-none text-white">{segment.origin_iata}</span>
+                    <span className="block text-sm text-gray-300">{segment.origin_name || 'Origin'}</span>
                 </div>
-                <div className="flex flex-col items-center mx-2">
-                    <Plane size={36} className="text-blue-500" />
-                    <span className="text-xs text-gray-500">{formatDuration(segment.duration_minutes)}</span>
+                <div className="text-center text-gray-400 text-xs">
+                    <Plane size={28} className="text-orange-500 mx-auto mb-1" />
+                    <span>{formatDuration(segment.duration_minutes)}</span>
                 </div>
-                <div className="flex flex-col items-center">
-                    <MapPin size={24} className="text-blue-500 mb-1" />
-                    <span className="text-sm text-gray-600 font-semibold">TO</span>
-                    <span className="text-3xl font-extrabold text-blue-800">{segment.destination_iata || '???'}</span>
-                    <span className="text-sm text-gray-500">{segment.destination_name || 'Destination'}</span>
+                <div>
+                    <span className="text-4xl font-extrabold leading-none text-white">{segment.destination_iata}</span>
+                    <span className="block text-sm text-gray-300">{segment.destination_name || 'Destination'}</span>
                 </div>
             </div>
-            <div className="grid grid-cols-2 md:grid-cols-4 gap-y-4 gap-x-6 text-sm text-gray-700 font-mono mt-6 pt-4 border-t border-dashed border-gray-300 relative z-10">
-                <div><span className="text-blue-500 text-xs block">PASSENGER</span><span className="font-semibold">{passenger.name?.toUpperCase() || 'N/A'}</span></div>
-                <div><span className="text-blue-500 text-xs block">FLIGHT</span><span className="font-semibold">{segment.flight_number || 'N/A'}</span></div>
-                <div><span className="text-blue-500 text-xs block">DATE</span><span className="font-semibold">{formatDate(travelDate, false)}</span></div>
-                <div><span className="text-blue-500 text-xs block">DEPARTS</span><span className="font-semibold">{formatTime(segment.departure_time)}</span></div>
-                <div><span className="text-blue-500 text-xs block">CLASS</span><span className="font-semibold">{segment.flight_class || 'ECONOMY'}</span></div>
-                <div><span className="text-blue-500 text-xs block">SEAT</span><span className="font-semibold">{segment.seat_number || 'N/A'}</span></div>
-                <div><span className="text-blue-500 text-xs block">GATE</span><span className="font-semibold">{segment.gate || 'N/A'}</span></div>
-                <div><span className="text-blue-500 text-xs block">TERMINAL</span><span className="font-semibold">{segment.terminal || 'N/A'}</span></div>
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3 border-t border-dashed border-gray-600 pt-4 text-xs">
+                <div className="flex flex-col"><span>PASSENGER</span><strong className="font-mono text-white">{passenger.name?.toUpperCase()}</strong></div>
+                <div className="flex flex-col"><span>FLIGHT</span><strong className="font-mono text-white">{segment.flight_number}</strong></div>
+                <div className="flex flex-col"><span>DATE</span><strong className="font-mono text-white">{formatDate(travelDate, false)}</strong></div>
+                <div className="flex flex-col"><span>DEPARTS</span><strong className="font-mono text-white">{formatTime(segment.departure_time)}</strong></div>
+                <div className="flex flex-col"><span>CLASS</span><strong className="font-mono text-white">{segment.flight_class || 'ECONOMY'}</strong></div>
+                <div className="flex flex-col"><span>SEAT</span><strong className="font-mono text-white">{segment.seat_number || 'N/A'}</strong></div>
+                <div className="flex flex-col"><span>GATE</span><strong className="font-mono text-white">{segment.gate || 'N/A'}</strong></div>
+                <div className="flex flex-col"><span>TERMINAL</span><strong className="font-mono text-white">{segment.terminal || 'N/A'}</strong></div>
             </div>
-             <p className="text-center mt-6 text-xs font-mono text-gray-500 relative z-10">SEGMENT ID: {segment.segment_id}</p>
         </div>
     );
 };

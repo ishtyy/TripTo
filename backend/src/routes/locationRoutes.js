@@ -1,8 +1,11 @@
 import express from 'express';
-import { findOrCreateLocation, importAirportsFromJson } from '../controllers/locationController.js'; // Import new function
+import { findOrCreateLocation, importAirportsFromJson, searchLocations } from '../controllers/locationController.js'; // Import search function
 import { checkJwtMiddleware, requireRole } from '../middleware/authMiddleware.js'; // Assuming you want this protected
 
 const router = express.Router();
+
+// Add search route - this should be before parameterized routes
+router.get('/', searchLocations);
 
 // Fix: Add the find-or-create route that the frontend expects
 router.route('/find-or-create').post(checkJwtMiddleware, findOrCreateLocation);

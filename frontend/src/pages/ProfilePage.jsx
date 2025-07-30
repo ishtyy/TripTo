@@ -152,7 +152,12 @@ export default function ProfilePage({ loggedInUser, onViewPost, onCascade, onTri
                     <p className="text-gray-300 mt-4 text-base max-w-xl">{profileData.bio || "This user hasn't added a bio yet."}</p>
                     <div className="mt-6 flex items-center justify-center md:justify-start gap-3">
                         {isOwnProfile ? (
-                            <button className="inline-flex items-center px-5 py-2 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-lg"><Edit size={16} className="mr-2" /> Edit Profile</button>
+                            <button 
+                                onClick={() => navigate('/settings')}
+                                className="inline-flex items-center px-5 py-2 bg-gray-700 hover:bg-gray-600 text-white font-semibold rounded-lg"
+                            >
+                                <Edit size={16} className="mr-2" /> Edit Profile
+                            </button>
                         ) : (
                             <>
                                 <button onClick={handleFollowToggle} className={`inline-flex items-center px-5 py-2 rounded-lg font-semibold transition-colors ${isFollowing ? 'bg-cyan-600/20 text-cyan-300 hover:bg-cyan-600/30' : 'bg-purple-600 text-white hover:bg-purple-700'}`}>
@@ -189,7 +194,7 @@ export default function ProfilePage({ loggedInUser, onViewPost, onCascade, onTri
                 {activeTab === 'posts' && (
                     <section className="space-y-6">
                         {userPosts.length > 0 ? (
-                            userPosts.map(post => <BlogPostCard key={post.post_id} post={post} user={loggedInUser} onTriggerSignIn={onTriggerSignIn} onViewPost={onViewPost} onCascade={onCascade} />)
+                            userPosts.map(post => <BlogPostCard key={post.post_id} post={post} user={loggedInUser} onTriggerSignIn={onTriggerSignIn} onViewPost={(post) => onViewPost(post, userPosts)} onCascade={onCascade} />)
                         ) : (
                             <div className="text-center py-10 bg-gray-900/50 rounded-xl border border-gray-800"><p className="text-gray-400">No blog posts yet.</p></div>
                         )}

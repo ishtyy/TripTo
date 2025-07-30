@@ -1,15 +1,103 @@
-create table public.accommodation (
-  accommodation_id uuid not null,
-  external_hotel_id text null,
-  hotel_name text not null,
-  location_id uuid null,
-  room_type text null,
-  check_in timestamp without time zone null,
-  check_out timestamp without time zone null,
-  constraint accommodation_pkey primary key (accommodation_id),
-  constraint accommodation_accommodation_id_fkey foreign KEY (accommodation_id) references bookable_item (bookable_item_id) on delete CASCADE,
-  constraint accommodation_location_id_fkey foreign KEY (location_id) references locations (location_id)
-) TABLESPACE pg_default;
+-- Enhanced schema additions for TripTo2.0
+
+-- Add tags support for blog posts
+create table public.blog_tags (
+  tag_id uuid not null default gen_random_uuid(),
+  tag_name varchar(50) not null unique,
+  color varchar(7) default '#3b82f6',
+  created_at timestamp with time zone default now(),
+  usage_count integer default 0,
+  constraint blog_tags_pkey primary key (tag_id)
+);
+
+-- Junction table for blog post tags
+create table public.blog_post_tags (
+  post_id uuid not null,
+  tag_id uuid not null,
+  constraint blog_post_tags_pkey primary key (post_id, tag_id),
+  constraint blog_post_tags_post_fkey foreign key (post_id) references blogpost (post_id) on delete cascade,
+  constraint blog_post_tags_tag_fkey foreign key (tag_id) references blog_tags (tag_id) on delete cascade
+);
+
+-- Add reactions support for blog posts
+create table public.blog_post_reactions (
+  reaction_id uuid not null default gen_random_uuid(),
+  post_id uuid not null,
+  user_id uuid not null,
+  reaction_type varchar(20) not null,
+  created_at timestamp with time zone default now(),
+  constraint blog_post_reactions_pkey primary key (reaction_id),
+  constraint unique_user_post_reaction unique (user_id, post_id, reaction_type),
+  constraint blog_post_reactions_post_fkey foreign key (post_id) references blogpost (post_id) on delete cascade,
+  constraint blog_post_reactions_user_fkey foreign key (user_id) references user_profiles (user_id) on delete cascade,
+  constraint valid_reaction_type check (reaction_type in ('like', 'love', 'laugh', 'wow', 'sad', 'angry'))
+);
+
+-- Add hotel support
+create table public.hotels (
+  hotel_id uuid not null default gen_random_uuid(),
+  hotel_name varchar(255) not null,
+  location_id uuid not null,
+  address text,
+  star_rating integer check (star_rating between 1 and 5),
+  description text,
+  amenities jsonb,
+  contact_info jsonb,
+  check_in_time time default '15:00:00',
+  check_out_time time default '11:00:00',
+  created_at timestamp with time zone default now(),
+  is_active boolean default true,
+  constraint hotels_pkey primary key (hotel_id),
+  constraint hotels_location_fkey foreign key (location_id) references locations (location_id)
+);
+
+-- Hotel room types
+create table public.hotel_rooms (
+  room_id uuid not null default gen_random_uuid(),
+  hotel_id uuid not null,
+  room_type varchar(100) not null,
+  bed_type varchar(50),
+  capacity integer not null check (capacity > 0),
+  base_price numeric(10,2) not null check (base_price >= 0),
+  room_size_sqm integer,
+  amenities jsonb,
+  is_available boolean default true,
+  constraint hotel_rooms_pkey primary key (room_id),
+  constraint hotel_rooms_hotel_fkey foreign key (hotel_id) references hotels (hotel_id) on delete cascade
+);
+
+-- Hotel bookings
+create table public.hotel_bookings (
+  booking_id uuid not null,
+  hotel_id uuid not null,
+  room_id uuid not null,
+  check_in_date date not null,
+  check_out_date date not null,
+  guest_count integer not null check (guest_count > 0),
+  special_requests text,
+  constraint hotel_bookings_pkey primary key (booking_id),
+  constraint hotel_bookings_booking_fkey foreign key (booking_id) references booking (booking_id) on delete cascade,
+  constraint hotel_bookings_hotel_fkey foreign key (hotel_id) references hotels (hotel_id),
+  constraint hotel_bookings_room_fkey foreign key (room_id) references hotel_rooms (room_id),
+  constraint valid_date_range check (check_out_date > check_in_date)
+);
+
+-- Add user activity tracking
+alter table public.user_profiles add column if not exists last_activity timestamp with time zone default now();
+alter table public.user_profiles add column if not exists is_online boolean default false;
+alter table public.user_profiles add column if not exists role varchar(20) default 'user' check (role in ('user', 'admin', 'moderator'));
+
+-- Add enhanced flight details
+alter table public.flight add column if not exists duration_minutes integer;
+alter table public.flight add column if not exists has_transit boolean default false;
+alter table public.flight add column if not exists transit_airports text[];
+alter table public.flight add column if not exists transit_duration_minutes integer[];
+
+-- Add trending support for posts
+alter table public.blogpost add column if not exists view_count integer default 0;
+alter table public.blogpost add column if not exists is_trending boolean default false;
+alter table public.blogpost add column if not exists trending_score numeric default 0;
+alter table public.blogpost add column if not exists comment_count integer default 0;
 
 create table public.activity (
   activity_id uuid not null default gen_random_uuid (),
@@ -228,7 +316,7 @@ create table public.conversation_participants (
   constraint conversation_participants_user_id_fkey foreign KEY (user_id) references user_profiles (user_id) on delete CASCADE
 ) TABLESPACE pg_default;
 
-create index IF not exists idx_conversation_participants_user_id on public.conversation_participants using btree (user_id) TABLESPACE pg_default;
+create index IF not exists idx_conversation_participants_user
 
 create table public.conversations (
   conversation_id uuid not null default gen_random_uuid (),

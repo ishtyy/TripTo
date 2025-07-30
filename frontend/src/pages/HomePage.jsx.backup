@@ -1,0 +1,278 @@
+import { useEffect, useState, useRef } from "react";
+import { useNavigate } from 'react-router-dom';
+import api from '../services/api';
+import BlogPostCard from "../components/blog/BlogPostCard";
+import { Loader2, PenSquare, User as UserIcon, Search, ChevronDown, Compass, FileText, Users, TrendingUp, Star, MapPin, Calendar, Activity } from "lucide-react";
+
+const searchOptions = [
+  { id: 'destinations', label: 'Destinations', icon: Compass, color: 'from-blue-500 to-cyan-500' },
+  { id: 'posts', label: 'Posts', icon: FileText, color: 'from-purple-500 to-pink-500' },
+  { id: 'communities', label: 'Communities', icon: Users, color: 'from-green-500 to-emerald-500' },
+];
+        return (words[0][0] + words[1][0]).toUpperCase();
+    }
+    return name.slice(0, 2).toUpperCase();
+};
+
+/**
+ * Sub-component: the "Share your story…" prompt.
+ */tCard from "../components/blog/BlogPostCard";
+import { Loader2, PenSquare, User as UserIcon, Search, ChevronDown, Compass, FileText, Users, TrendingUp, Star, MapPin, Calendar, Activity } from "lucide-react";
+
+const searchOptions = [
+  { id: 'destinations', label: 'Destinations', icon: Compass, color: 'from-blue-500 to-cyan-500' },
+  { id: 'posts', label: 'Posts', icon: FileText, color: 'from-purple-500 to-pink-500' },
+  { id: 'communities', label: 'Communities', icon: Users, color: 'from-green-500 to-emerald-500' },
+];
+
+/**
+ * Search Component for the right sidebar
+ */
+const SearchSection = () => {
+    const [searchCategory, setSearchCategory] = useState(searchOptions[0]);
+    const [searchTerm, setSearchTerm] = useState('');
+    const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+    const [stats, setStats] = useState(null);
+    const dropdownRef = useRef(null);
+    const navigate = useNavigate();
+
+    useEffect(() => {
+        const handleClickOutside = (e) => {
+            if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+                setIsDropdownOpen(false);
+            }
+        };
+        document.addEventListener('mousedown', handleClickOutside);
+        return () => document.removeEventListener('mousedown', handleClickOutside);
+    }, []);
+
+    useEffect(() => {
+        const fetchStats = async () => {
+            try {
+                const response = await api.get('/stats');
+                setStats(response.data);
+            } catch (error) {
+                console.error('Failed to fetch stats:', error);
+            }
+        };
+        fetchStats();
+    }, []);
+
+    const handleSearch = () => {
+        if (!searchTerm.trim()) return;
+        navigate(`/search?type=${searchCategory.id}&q=${encodeURIComponent(searchTerm)}`);
+    };
+
+    const quickStats = [
+        { label: 'Communities', value: stats?.communities?.total || 'N/A', icon: Users, color: 'text-blue-400' },
+        { label: 'Posts Today', value: stats?.activity?.dailyPosts || 'N/A', icon: FileText, color: 'text-purple-400' },
+        { label: 'Active Users', value: stats?.users?.active || 'N/A', icon: Activity, color: 'text-green-400' },
+        { label: 'Bookings', value: stats?.activity?.weeklyBookings || 'N/A', icon: Calendar, color: 'text-yellow-400' }
+    ];
+
+    return (
+        <div className="space-y-6">
+            {/* Search Section */}
+            <div className="bg-gradient-to-br from-gray-900/90 to-gray-800/90 rounded-xl p-6 border border-gray-700 backdrop-blur-sm">
+                <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                    <Search className="text-cyan-400" size={20} />
+                    Quick Search
+                </h3>
+                
+                <div className="flex flex-col gap-3">
+                    <div ref={dropdownRef} className="relative">
+                        <button
+                            onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                            className={`w-full flex items-center justify-between gap-3 px-4 py-3 text-white font-medium bg-gradient-to-r ${searchCategory.color} hover:opacity-90 transition-all rounded-lg`}
+                        >
+                            <div className="flex items-center gap-2">
+                                <searchCategory.icon size={16} />
+                                <span>{searchCategory.label}</span>
+                            </div>
+                            <ChevronDown size={16} className={`transition-transform ${isDropdownOpen ? 'rotate-180' : ''}`} />
+                        </button>
+                        {isDropdownOpen && (
+                            <div className="absolute top-full mt-2 w-full bg-gray-900/95 border border-gray-600 rounded-lg shadow-xl z-50 overflow-hidden backdrop-blur-sm">
+                                {searchOptions.map((option) => (
+                                    <div 
+                                        key={option.id} 
+                                        onClick={() => { setSearchCategory(option); setIsDropdownOpen(false); }} 
+                                        className="flex items-center gap-3 px-4 py-3 hover:bg-gray-700 cursor-pointer transition-all text-white"
+                                    >
+                                        <option.icon size={16} className="text-gray-300" />
+                                        <span>{option.label}</span>
+                                    </div>
+                                ))}
+                            </div>
+                        )}
+                    </div>
+                    
+                    <div className="flex gap-2">
+                        <input
+                            type="text"
+                            placeholder={`Search ${searchCategory.label.toLowerCase()}...`}
+                            className="flex-1 bg-gray-800/80 text-white placeholder-gray-400 focus:outline-none px-4 py-3 text-sm rounded-lg border border-gray-600 focus:border-cyan-400 transition-colors"
+                            value={searchTerm}
+                            onChange={(e) => setSearchTerm(e.target.value)}
+                            onKeyDown={(e) => e.key === 'Enter' && handleSearch()}
+                        />
+                        <button 
+                            onClick={handleSearch} 
+                            disabled={!searchTerm.trim()} 
+                            className="px-4 py-3 bg-gradient-to-r from-purple-600 to-cyan-600 hover:from-purple-700 hover:to-cyan-700 disabled:opacity-50 disabled:cursor-not-allowed rounded-lg transition-all"
+                        >
+                            <Search size={16} />
+                        </button>
+                    </div>
+                </div>
+            </div>
+
+            {/* Quick Stats */}
+            <div className="bg-gradient-to-br from-gray-900/90 to-gray-800/90 rounded-xl p-6 border border-gray-700 backdrop-blur-sm">
+                <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                    <TrendingUp className="text-green-400" size={20} />
+                    Platform Stats
+                </h3>
+                <div className="grid grid-cols-2 gap-4">
+                    {quickStats.map((stat, index) => (
+                        <div key={index} className="text-center p-3 bg-gray-800/50 rounded-lg border border-gray-700/50">
+                            <stat.icon className={`${stat.color} mx-auto mb-2`} size={20} />
+                            <p className="text-lg font-bold text-white">{stat.value}</p>
+                            <p className="text-xs text-gray-400">{stat.label}</p>
+                        </div>
+                    ))}
+                </div>
+            </div>
+
+            {/* Trending Topics */}
+            <div className="bg-gradient-to-br from-gray-900/90 to-gray-800/90 rounded-xl p-6 border border-gray-700 backdrop-blur-sm">
+                <h3 className="text-xl font-bold text-white mb-4 flex items-center gap-2">
+                    <Star className="text-yellow-400" size={20} />
+                    Trending
+                </h3>
+                <div className="space-y-3">
+                    {['#TravelTips', '#BackpackingEurope', '#SoloTravel', '#FoodieAdventures'].map((tag, index) => (
+                        <div key={index} className="flex items-center justify-between p-2 bg-gray-800/50 rounded-lg hover:bg-gray-700/50 cursor-pointer transition-colors">
+                            <span className="text-cyan-400 font-medium text-sm">{tag}</span>
+                            <span className="text-xs text-gray-400">{Math.floor(Math.random() * 50) + 10} posts</span>
+                        </div>
+                    ))}
+                </div>
+            </div>
+        </div>
+    );
+};
+
+/**
+ * Sub-component: the “Share your story…” prompt.
+ */
+const CreatePostPrompt = ({ user, onOpenBlogModal, onTriggerSignIn }) => {
+    const handleClick = () => {
+        if (user) {
+            onOpenBlogModal();
+        } else {
+            onTriggerSignIn();
+        }
+    };
+
+    return (
+        <div className="bg-gray-900/80 p-4 rounded-xl border-2 border-gray-800 flex items-center gap-4">
+            {/* ✅ FIX: This logic now correctly handles the logged-in vs. logged-out state. */}
+            <div className="w-10 h-10 rounded-full bg-gray-700 flex-shrink-0">
+                {user ? (
+                    <img 
+                        src={user.profile_picture_url || `https://ui-avatars.com/api/?name=${getInitials(user.username)}&background=22d3ee&color=000&bold=true`} 
+                        alt={user.username} 
+                        className="w-full h-full rounded-full object-cover"
+                    />
+                ) : (
+                    <div className="w-full h-full rounded-full flex items-center justify-center bg-gray-700">
+                        <UserIcon size={20} className="text-gray-400" />
+                    </div>
+                )}
+            </div>
+
+            <div
+                onClick={handleClick}
+                className="flex-1 px-4 py-2 text-left bg-gray-800 hover:bg-gray-700/80 border border-gray-700 rounded-lg cursor-pointer transition-colors"
+            >
+                <p className="text-gray-400">Share your story...</p>
+            </div>
+
+            <button
+                onClick={handleClick}
+                className="flex items-center gap-2 px-4 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg font-semibold transition-colors"
+            >
+                <PenSquare size={18} />
+                <span>Create Post</span>
+            </button>
+        </div>
+    );
+};
+
+/**
+ * Main Page: displays the prompt + feed of blog posts.
+ */
+export default function HomePage({
+  user,
+  onTriggerSignIn,
+  onOpenBlogModal,
+  onViewPost,
+  onCascade,
+  dataVersion
+}) {
+  const [posts, setPosts] = useState([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchPosts = async () => {
+      setLoading(true);
+      try {
+        const response = await api.get("/posts?limit=20");
+        setPosts(response.data.posts || []);
+      } catch (error) {
+        console.error("Error fetching posts:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchPosts();
+  }, [dataVersion]);
+
+  return (
+    <div className="space-y-8 animate-fade-in-up">
+      <div className="max-w-4xl mx-auto space-y-6">
+        {/* Share your story prompt */}
+        <CreatePostPrompt
+          user={user}
+          onOpenBlogModal={onOpenBlogModal}
+          onTriggerSignIn={onTriggerSignIn}
+        />
+
+        {/* Feed of posts */}
+        {loading ? (
+          <div className="flex justify-center py-20">
+            <Loader2 className="animate-spin text-cyan-500" size={40} />
+          </div>
+        ) : posts.length > 0 ? (
+          posts.map((post, idx) => (
+            <BlogPostCard
+              key={post.post_id}
+              post={post}
+              user={user}
+              onTriggerSignIn={onTriggerSignIn}
+              onViewPost={onViewPost}
+              onCascade={onCascade}
+              animationDelay={idx * 50}
+            />
+          ))
+        ) : (
+          <div className="text-center py-20">
+            <h2 className="text-2xl font-bold text-white">No Posts Yet</h2>
+            <p className="text-gray-400 mt-2">Be the first to share a story!</p>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}

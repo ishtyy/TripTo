@@ -1,7 +1,7 @@
 // backend/src/routes/usersRoutes.js
-const express = require("express");
-const db = require("../config/db");
-const { checkJwtMiddleware } = require("../middleware/authMiddleware");
+import express from "express";
+import db from "../config/db.js";
+import { checkJwtMiddleware } from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
@@ -86,4 +86,4 @@ router.get("/:userId/communities", checkJwtMiddleware, async (req, res) => {
     }
 });
 
-module.exports = router;
+export default router;

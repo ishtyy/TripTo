@@ -229,22 +229,9 @@ export const getPublicPackageDetails = asyncHandler(async (req, res) => {
                 bi.type as module_type,
                 bi.title,
                 bi.description,
-                bi.price,
-                -- Additional details for flights
-                f.airline, f.flight_number, 
-                ol.location_name as origin_name, dl.location_name as destination_name, 
-                f.departure_time, f.arrival_time,
-                -- Additional details for accommodations
-                a.hotel_name, a.room_type, a.check_in, a.check_out,
-                -- Additional details for activities
-                act.activity_name, act.activity_type, act.duration_minutes, act.start_time, act.end_time
+                bi.price
             FROM package_module pm
             JOIN bookable_item bi ON pm.module_id = bi.bookable_item_id
-            LEFT JOIN flight f ON bi.bookable_item_id = f.flight_id
-            LEFT JOIN locations ol ON f.origin_id = ol.location_id
-            LEFT JOIN locations dl ON f.destination_id = dl.location_id
-            LEFT JOIN accommodation a ON bi.bookable_item_id = a.accommodation_id
-            LEFT JOIN activity act ON bi.bookable_item_id = act.activity_id
             WHERE pm.package_id = $1
             ORDER BY bi.type, bi.title`,
             [packageId]
@@ -254,7 +241,7 @@ export const getPublicPackageDetails = asyncHandler(async (req, res) => {
             success: true,
             package: {
                 ...packageDetails,
-                modules // All modules are returned in a single array, frontend will filter
+                modules
             }
         });
 
@@ -274,10 +261,10 @@ export const bookPackage = asyncHandler(async (req, res) => {
     const { 
         package_id, 
         passenger_details = [], 
-        total_amount, // These will now be stored in invoice_item
-        original_amount, // These will now be stored in invoice_item
-        discount_amount = 0, // These will now be stored in invoice_item
-        coupon_code = null // This will be passed to coupon generation and potentially stored in invoice_item description if needed
+        total_amount,
+        original_amount,
+        discount_amount = 0,
+        coupon_code = null
     } = req.body;
     const user_id = req.user?.user_id;
 
@@ -328,12 +315,12 @@ export const bookPackage = asyncHandler(async (req, res) => {
                 throw new Error(`Maximum ${packageDetails.group_size} passengers allowed for this package`);
             }
 
-            // 3. Create booking record - FIX: Only insert columns that exist in the booking table
+            // 3. Create booking record
             const booking = await t.one(
                 `INSERT INTO booking (user_id, travel_date, status, booked_at)
                  VALUES ($1, $2, $3, NOW())
                  RETURNING booking_id, booked_at`,
-                [user_id, packageDetails.start_date, 'pending'] 
+                [user_id, packageDetails.start_date, 'pending']
             );
 
             const bookingId = booking.booking_id;
@@ -341,8 +328,8 @@ export const bookPackage = asyncHandler(async (req, res) => {
 
             // FIX: Create an Invoice for the booking
             const invoice = await t.one(
-                `INSERT INTO invoice (booking_id, issued_at, overall_status)
-                 VALUES ($1, NOW(), 'unpaid')
+                `INSERT INTO invoice (booking_id, overall_status)
+                 VALUES ($1, 'unpaid')
                  RETURNING invoice_id`,
                 [bookingId]
             );
@@ -352,7 +339,7 @@ export const bookPackage = asyncHandler(async (req, res) => {
             await t.none(
                 `INSERT INTO booking_item (booking_id, bookable_item_id, quantity, price_at_booking)
                  VALUES ($1, $2, $3, $4)`,
-                [bookingId, package_id, passenger_details.length, packageDetails.price] 
+                [bookingId, package_id, passenger_details.length, packageDetails.price]
             );
 
             // FIX: Create an Invoice Item for the package to store financial details
@@ -362,8 +349,7 @@ export const bookPackage = asyncHandler(async (req, res) => {
                 [invoiceId, package_id, original_amount, discount_amount, total_amount]
             );
 
-
-            // 4. Add passenger details - FIX: Map frontend fields to backend table fields
+            // FIX: Add passenger details - Map frontend fields to backend table fields
             for (const passenger of passenger_details) {
                 const fullName = `${passenger.firstName || ''} ${passenger.lastName || ''}`.trim();
                 const nationality = 'Unknown'; // Placeholder, consider collecting from frontend
@@ -384,7 +370,22 @@ export const bookPackage = asyncHandler(async (req, res) => {
                 );
             }
 
-            // 5. Generate flight discount coupon (Using default settings)
+            // 6. Record coupon usage if a coupon was applied
+            if (coupon_code) {
+                try {
+                    await t.none(
+                        `INSERT INTO coupon_usage (coupon_id, user_id, booking_id, original_amount, discount_amount, used_at)
+                         SELECT c.coupon_id, $1, $2, $3, $4, NOW()
+                         FROM coupons c 
+                         WHERE c.coupon_code = $5 AND c.status = 'active'`,
+                        [user_id, bookingId, original_amount, discount_amount, coupon_code]
+                    );
+                    console.log('Coupon usage recorded for:', coupon_code);
+                } catch (couponUsageError) {
+                    console.error('Error recording coupon usage:', couponUsageError);
+                    // Don't fail the transaction for coupon usage errors
+                }
+            }
             let generatedCoupon = null;
             
             console.log('Generating flight discount coupon with default settings');
@@ -574,25 +575,140 @@ export const getPackageDetails = asyncHandler(async (req, res) => {
 
 export const updatePackage = asyncHandler(async (req, res) => {
     const { packageId } = req.params;
-    const { title, description, price, start_date, end_date, group_size, destination_id } = req.body;
+    const { 
+        title, 
+        description, 
+        destination, 
+        start_date, 
+        end_date, 
+        group_size, 
+        hotels = [], 
+        activities = [], 
+        flight_discount_metadata,
+        total_slots,
+        available_until
+    } = req.body;
+
+    console.log('Updating package with payload:', JSON.stringify(req.body, null, 2));
 
     try {
         await db.tx(async (t) => {
-            // Update bookable_item
+            // Calculate the total price from hotels and activities
+            const hotelTotal = hotels.reduce((sum, hotel) => sum + (parseFloat(hotel.price) || 0), 0);
+            const activityTotal = activities.reduce((sum, activity) => sum + (parseFloat(activity.price) || 0), 0);
+            const totalPrice = hotelTotal + activityTotal;
+
+            // 1. Update bookable_item (package basic info)
             await t.none(
                 `UPDATE bookable_item 
                  SET title = $1, description = $2, price = $3 
                  WHERE bookable_item_id = $4`,
-                [title, description, price, packageId]
+                [title, description, totalPrice, packageId]
             );
 
-            // Update travel_package
+            // 2. Handle destination - if it's an object with coordinates, find or create location
+            let destinationId = null;
+            if (destination) {
+                if (typeof destination === 'object' && destination.latitude && destination.longitude) {
+                    // Try to find existing location by coordinates or name
+                    const existingLocation = await t.oneOrNone(
+                        `SELECT location_id FROM locations 
+                         WHERE location_name = $1 OR (latitude = $2 AND longitude = $3)
+                         LIMIT 1`,
+                        [destination.name, destination.latitude, destination.longitude]
+                    );
+
+                    if (existingLocation) {
+                        destinationId = existingLocation.location_id;
+                    } else {
+                        // Create new location
+                        const newLocation = await t.one(
+                            `INSERT INTO locations (location_name, latitude, longitude, country) 
+                             VALUES ($1, $2, $3, $4) 
+                             RETURNING location_id`,
+                            [destination.name, destination.latitude, destination.longitude, destination.country || 'Unknown']
+                        );
+                        destinationId = newLocation.location_id;
+                    }
+                } else if (destination.id) {
+                    destinationId = destination.id;
+                }
+            }
+
+            // 3. Update travel_package
             await t.none(
                 `UPDATE travel_package 
-                 SET start_date = $1, end_date = $2, group_size = $3, destination_id = $4 
-                 WHERE package_id = $5`,
-                [start_date, end_date, group_size, destination_id, packageId]
+                 SET start_date = $1, end_date = $2, group_size = $3, destination_id = $4,
+                     total_slots = $5, available_until = $6
+                 WHERE package_id = $7`,
+                [start_date, end_date, group_size, destinationId, total_slots, available_until, packageId]
             );
+
+            // 4. Delete existing package modules (hotels/activities) to replace them
+            await t.none(`DELETE FROM package_module WHERE package_id = $1`, [packageId]);
+
+            // 5. Add hotels as accommodation modules
+            for (const hotel of hotels) {
+                // Create accommodation record using the transaction
+                const accommodationId = await t.one(
+                    `INSERT INTO bookable_item (bookable_item_id, type, title, description, price, created_by)
+                     VALUES (gen_random_uuid(), 'accommodation', $1, $2, $3, $4)
+                     RETURNING bookable_item_id`,
+                    [hotel.title || hotel.hotel_name, hotel.description, hotel.price, null]
+                );
+
+                // Insert accommodation details
+                await t.none(
+                    `INSERT INTO accommodation (accommodation_id, hotel_name, room_type, location_id, check_in, check_out)
+                     VALUES ($1, $2, $3, $4, NOW()::date, (NOW() + interval '1 day')::date)`,
+                    [accommodationId.bookable_item_id, hotel.hotel_name, hotel.room_type, destinationId]
+                );
+
+                // Link to package
+                await t.none(
+                    `INSERT INTO package_module (package_id, module_id, included_by_default)
+                     VALUES ($1, $2, $3)`,
+                    [packageId, accommodationId.bookable_item_id, !hotel.optional]
+                );
+            }
+
+            // 6. Add activities as activity modules
+            for (const activity of activities) {
+                // Create activity record using the transaction
+                const activityId = await t.one(
+                    `INSERT INTO bookable_item (bookable_item_id, type, title, description, price, created_by)
+                     VALUES (gen_random_uuid(), 'activity', $1, $2, $3, $4)
+                     RETURNING bookable_item_id`,
+                    [activity.title || activity.activity_name, activity.description, activity.price, null]
+                );
+
+                // Insert activity details
+                await t.none(
+                    `INSERT INTO activity (activity_id, activity_name, activity_type, duration_minutes, start_time, end_time, location_id)
+                     VALUES ($1, $2, $3, $4, $5, $6, $7)`,
+                    [
+                        activityId.bookable_item_id, 
+                        activity.activity_name, 
+                        activity.activity_type || 'adventure', 
+                        activity.duration_minutes || 60,
+                        activity.start_time || '09:00:00',
+                        activity.end_time || '17:00:00',
+                        destinationId
+                    ]
+                );
+
+                // Link to package
+                await t.none(
+                    `INSERT INTO package_module (package_id, module_id, included_by_default)
+                     VALUES ($1, $2, $3)`,
+                    [packageId, activityId.bookable_item_id, !activity.optional]
+                );
+            }
+
+            // 7. Handle flight discount metadata (store as JSON in a metadata table or package table)
+            // For now, we'll skip this as the database schema doesn't have a dedicated place for it
+            // You might want to add a metadata column to travel_package table
+
         });
 
         res.json({

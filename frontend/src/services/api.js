@@ -10,11 +10,22 @@ const api = axios.create({
 api.interceptors.request.use(
   (config) => {
     // Get the token from localStorage
-    const token = localStorage.getItem('tripto_token');
+    const token = localStorage.getItem('tripto_token') || sessionStorage.getItem('tripto_token');
     
+
+    // ADD THESE DEBUG CONSOLE LOGS HERE:
+    console.log('🔍 DEBUG - Token from localStorage:', localStorage.getItem('tripto_token'));
+    console.log('🔍 DEBUG - Token from sessionStorage:', sessionStorage.getItem('tripto_token'));
+    console.log('🔍 DEBUG - Final token being used:', token);
+    console.log('🔍 DEBUG - Request URL:', config.url);
+    console.log('🔍 DEBUG - Request method:', config.method);
+
     // If the token exists, add it to the Authorization header
     if (token) {
       config.headers['Authorization'] = `Bearer ${token}`;
+      console.log('🔍 DEBUG - Authorization header set:', config.headers['Authorization']);
+    } else {
+      console.log('❌ DEBUG - No token found, Authorization header NOT set');
     }
     
     return config;
@@ -38,5 +49,21 @@ api.interceptors.response.use(
     return Promise.reject(error);
   }
 );
+
+// Hotel API endpoints
+export const hotelAPI = {
+  searchHotels: (params) => api.get('/hotels/search', { params }),
+  getHotelDetails: (id) => api.get(`/hotels/${id}`),
+  getPopularHotels: () => api.get('/hotels/popular'),
+  bookHotel: (bookingData) => api.post('/hotels/book', bookingData),
+};
+
+// Posts API endpoints
+export const postsAPI = {
+  getTrendingTags: () => api.get('/posts/trending-tags'),
+  getTrendingPosts: () => api.get('/posts/trending'),
+  addReaction: (postId, reactionType) => api.post(`/posts/${postId}/react`, { reaction_type: reactionType }),
+  incrementViewCount: (postId) => api.post(`/posts/${postId}/view`),
+};
 
 export default api;

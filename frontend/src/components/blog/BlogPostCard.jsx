@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
-import { Link } from 'react-router-dom';
-import { ArrowUp, ArrowDown, MessageSquare, GitBranch, Repeat } from 'lucide-react';
+import { Link, useNavigate } from 'react-router-dom';
+import { ArrowUp, ArrowDown, MessageSquare, GitBranch, Repeat, Tag } from 'lucide-react';
 import api from '../../services/api';
 import toast from 'react-hot-toast';
 
@@ -15,6 +15,8 @@ const QuotedPost = ({ post }) => (
 );
 
 export default function BlogPostCard({ post, user, onTriggerSignIn, onViewPost, onCascade }) {
+    const navigate = useNavigate();
+    
     // Safely initialize vote counts to 0 if they are null
     const [localUpvotes, setLocalUpvotes] = useState(post.upvote_count ?? 0);
     const [localDownvotes, setLocalDownvotes] = useState(post.downvote_count ?? 0);
@@ -53,20 +55,9 @@ export default function BlogPostCard({ post, user, onTriggerSignIn, onViewPost, 
     };
 
     return (
-        <div className="bg-gray-900/80 rounded-xl shadow-lg border-2 border-gray-800 transition-all duration-300 flex">
-            {/* Voting Section */}
-            <div className="flex flex-col items-center p-3 bg-gray-900/50 rounded-l-xl border-r border-gray-800">
-                <button onClick={() => handleVote(1)} className={`p-2 rounded-full transition-colors ${userVote === 1 ? 'text-purple-400 bg-purple-900/50' : 'text-gray-400 hover:bg-gray-700'}`}>
-                    <ArrowUp size={20} />
-                </button>
-                <span className="font-bold text-lg my-1 text-white">{localUpvotes - localDownvotes}</span>
-                <button onClick={() => handleVote(-1)} className={`p-2 rounded-full transition-colors ${userVote === -1 ? 'text-cyan-400 bg-cyan-900/50' : 'text-gray-400 hover:bg-gray-700'}`}>
-                    <ArrowDown size={20} />
-                </button>
-            </div>
-
+        <div className="bg-gray-900/80 rounded-xl shadow-lg border-2 border-gray-800 transition-all duration-300 hover:border-gray-700">
             {/* Post Content Section */}
-            <div className="p-5 flex-1 flex flex-col">
+            <div className="p-5 flex flex-col">
                  <div className="flex items-center gap-3 text-sm mb-3">
                     <Link to={`/profile/${post.author_id}`}>
                         <img src={post.user_profile?.profile_picture_url || `https://ui-avatars.com/api/?name=${encodeURIComponent(post.user_profile?.username)}&background=random`} alt={post.user_profile?.username} className="w-8 h-8 rounded-full bg-gray-700"/>
@@ -86,15 +77,52 @@ export default function BlogPostCard({ post, user, onTriggerSignIn, onViewPost, 
                     {post.parent_post && <QuotedPost post={post.parent_post} />}
                 </div>
 
-                <div className="mt-4 pt-3 border-t border-gray-800/50 flex items-center gap-6 text-sm">
-                    <button onClick={() => onViewPost(post)} className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors">
-                        <MessageSquare size={16} />
-                        <span>{post.comment_count || 0} Comments</span>
-                    </button>
-                    <button onClick={() => onCascade(post)} className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors">
-                        <GitBranch size={16} />
-                        <span>{post.cascade_count || 0} Cascades</span>
-                    </button>
+                {/* Tags Section */}
+                {post.tags && post.tags.length > 0 && (
+                    <div className="mt-3 flex flex-wrap gap-2">
+                        {post.tags.map((tag, index) => (
+                            <button
+                                key={index}
+                                onClick={(e) => {
+                                    e.stopPropagation();
+                                    const tagName = typeof tag === 'string' ? tag : tag.tag_name;
+                                    navigate(`/explore?tag=${encodeURIComponent(tagName)}`);
+                                }}
+                                className="inline-flex items-center gap-1 px-2 py-1 bg-purple-900/30 hover:bg-purple-800/50 text-purple-300 hover:text-purple-200 text-xs rounded-full border border-purple-700/50 hover:border-purple-600 transition-all duration-200"
+                            >
+                                <Tag size={12} />
+                                {typeof tag === 'string' ? tag : tag.tag_name}
+                            </button>
+                        ))}
+                    </div>
+                )}
+
+                {/* Interaction Section */}
+                <div className="mt-4 pt-3 border-t border-gray-800/50 flex items-center justify-between">
+                    {/* Left side - Vote buttons */}
+                    <div className="flex items-center gap-2">
+                        <div className="flex items-center bg-gray-800/50 rounded-full border border-gray-700">
+                            <button onClick={() => handleVote(1)} className={`p-2 rounded-l-full transition-colors ${userVote === 1 ? 'text-purple-400 bg-purple-900/50' : 'text-gray-400 hover:bg-gray-700'}`}>
+                                <ArrowUp size={18} />
+                            </button>
+                            <span className="font-bold text-sm px-3 text-white min-w-[3rem] text-center">{localUpvotes - localDownvotes}</span>
+                            <button onClick={() => handleVote(-1)} className={`p-2 rounded-r-full transition-colors ${userVote === -1 ? 'text-cyan-400 bg-cyan-900/50' : 'text-gray-400 hover:bg-gray-700'}`}>
+                                <ArrowDown size={18} />
+                            </button>
+                        </div>
+                    </div>
+
+                    {/* Right side - Action buttons */}
+                    <div className="flex items-center gap-4 text-sm">
+                        <button onClick={() => onViewPost(post)} className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors">
+                            <MessageSquare size={16} />
+                            <span>{post.comment_count || 0}</span>
+                        </button>
+                        <button onClick={() => onCascade(post)} className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors">
+                            <GitBranch size={16} />
+                            <span>{post.cascade_count || 0}</span>
+                        </button>
+                    </div>
                 </div>
             </div>
         </div>

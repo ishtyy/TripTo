@@ -44,7 +44,8 @@ export default function PackageBookingModal({ packageData, onClose, onBookingCom
                     coupon.current_status === 'available' && // Ensure it's truly available
                     (coupon.applicable_to_packages || 
                      coupon.coupon_type === 'package_discount' ||
-                     coupon.coupon_type === 'general')
+                     coupon.coupon_type === 'general' ||
+                     !coupon.applicable_to_flights) // Include non-flight specific coupons
                 );
                 setUserCoupons(availableCoupons);
                 console.log('Loaded available coupons for packages:', availableCoupons);
@@ -131,10 +132,15 @@ export default function PackageBookingModal({ packageData, onClose, onBookingCom
                     discount_amount: response.data.pricing.discount_amount
                 });
                 toast.success('Coupon applied successfully!');
+                setShowCouponDropdown(false); // Close dropdown after applying
             }
         } catch (error) {
             console.error('Error applying coupon:', error);
-            toast.error(error.response?.data?.message || 'Failed to apply coupon');
+            let errorMessage = 'Failed to apply coupon';
+            if (error.response?.data?.message) {
+                errorMessage = error.response.data.message;
+            }
+            toast.error(errorMessage);
             setCouponCode(''); // Clear coupon code on failure
             setAppliedCoupon(null); // Clear applied coupon on failure
         } finally {

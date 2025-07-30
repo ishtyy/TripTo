@@ -1,7 +1,8 @@
 import React, { useState, useEffect, useCallback } from "react";
+import { X, MapPin, Loader2, Tag, Plus } from "lucide-react";
 import MapPicker from "../common/MapPicker.jsx";
-import { X, Loader2 } from "lucide-react";
 import api from "../../services/api.js";
+import toast from "react-hot-toast";
 
 export default function BlogModal({ open, onClose, onPostCreated, user, onTriggerSignIn }) {
   const [title, setTitle] = useState("");
@@ -9,6 +10,9 @@ export default function BlogModal({ open, onClose, onPostCreated, user, onTrigge
   const [selectedLocationDetails, setSelectedLocationDetails] = useState(null);
   const [loading, setLoading] = useState(false);
   const [errorMsg, setErrorMsg] = useState("");
+  const [tags, setTags] = useState([]);
+  const [newTag, setNewTag] = useState("");
+  const [trendingTags, setTrendingTags] = useState([]);
 
   useEffect(() => {
     if (open) {
@@ -17,12 +21,36 @@ export default function BlogModal({ open, onClose, onPostCreated, user, onTrigge
       setSelectedLocationDetails(null);
       setLoading(false);
       setErrorMsg("");
+      setTags([]);
+      setNewTag("");
+      
+      // Fetch trending tags
+      api.get("/posts/trending-tags")
+        .then(res => setTrendingTags(res.data.tags || []))
+        .catch(err => console.log("Could not fetch trending tags:", err));
     }
   }, [open]);
 
   const handleLocationSelected = useCallback((locationData) => {
     setSelectedLocationDetails(locationData);
   }, []);
+
+  const addTag = () => {
+    if (newTag.trim() && !tags.some(tag => tag.toLowerCase() === newTag.trim().toLowerCase()) && tags.length < 10) {
+      setTags([...tags, newTag.trim()]);
+      setNewTag("");
+    }
+  };
+
+  const removeTag = (tagToRemove) => {
+    setTags(tags.filter(tag => tag !== tagToRemove));
+  };
+
+  const addTrendingTag = (trendingTag) => {
+    if (!tags.some(tag => tag.toLowerCase() === trendingTag.name.toLowerCase()) && tags.length < 10) {
+      setTags([...tags, trendingTag.name]);
+    }
+  };
 
   async function handleCreate(e) {
     e.preventDefault();
@@ -58,6 +86,7 @@ export default function BlogModal({ open, onClose, onPostCreated, user, onTrigge
         title: title.trim(),
         content: content.trim(),
         location_id: locationId,
+        tags: tags
       };
 
       const postResponse = await api.post("/posts", postPayload);
@@ -94,6 +123,72 @@ export default function BlogModal({ open, onClose, onPostCreated, user, onTrigge
                 <textarea id="postContent" value={content} onChange={(e) => setContent(e.target.value)}
                 className="w-full px-4 py-2 rounded-lg bg-gray-800 text-white placeholder-gray-500 border-2 border-gray-700 focus:outline-none focus:border-purple-500 transition-colors resize-none"
                 rows={5} placeholder="Share your story..." required disabled={!user || loading} />
+            </div>
+            
+            {/* Tags Section */}
+            <div>
+                <label className="block text-sm font-medium text-gray-300 mb-1.5">Tags (optional)</label>
+                
+                {/* Current Tags */}
+                {tags.length > 0 && (
+                    <div className="flex flex-wrap gap-2 mb-3">
+                        {tags.map((tag, index) => (
+                            <span key={index} className="inline-flex items-center gap-1 px-3 py-1 bg-purple-600 text-white text-sm rounded-full">
+                                <Tag size={12} />
+                                {tag}
+                                <button type="button" onClick={() => removeTag(tag)} className="ml-1 text-purple-200 hover:text-white">
+                                    <X size={12} />
+                                </button>
+                            </span>
+                        ))}
+                    </div>
+                )}
+                
+                {/* Add New Tag */}
+                <div className="flex gap-2 mb-3">
+                    <input
+                        type="text"
+                        value={newTag}
+                        onChange={(e) => setNewTag(e.target.value)}
+                        onKeyPress={(e) => e.key === 'Enter' && (e.preventDefault(), addTag())}
+                        placeholder="Add a tag..."
+                        className="flex-1 px-3 py-2 rounded-lg bg-gray-800 text-white placeholder-gray-500 border-2 border-gray-700 focus:outline-none focus:border-purple-500 transition-colors text-sm"
+                        disabled={!user || loading || tags.length >= 10}
+                    />
+                    <button
+                        type="button"
+                        onClick={addTag}
+                        disabled={!newTag.trim() || tags.length >= 10}
+                        className="px-3 py-2 bg-purple-600 hover:bg-purple-700 text-white rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+                    >
+                        <Plus size={16} />
+                    </button>
+                </div>
+                
+                {/* Trending Tags */}
+                {trendingTags.length > 0 && (
+                    <div>
+                        <p className="text-xs text-gray-400 mb-2">Popular tags:</p>
+                        <div className="flex flex-wrap gap-2">
+                            {trendingTags.slice(0, 8).map((tag) => (
+                                <button
+                                    key={tag.id}
+                                    type="button"
+                                    onClick={() => addTrendingTag(tag)}
+                                    disabled={tags.some(t => t.toLowerCase() === tag.name.toLowerCase()) || tags.length >= 10}
+                                    className="inline-flex items-center gap-1 px-2 py-1 bg-gray-700 hover:bg-purple-600 text-gray-300 hover:text-white text-xs rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                                >
+                                    <Tag size={10} />
+                                    {tag.name} ({tag.count})
+                                </button>
+                            ))}
+                        </div>
+                    </div>
+                )}
+                
+                {tags.length >= 10 && (
+                    <p className="text-xs text-yellow-400 mt-2">Maximum 10 tags allowed</p>
+                )}
             </div>
             <div>
                 <label className="block text-sm font-medium text-gray-300 mb-1.5">Pick Location</label>

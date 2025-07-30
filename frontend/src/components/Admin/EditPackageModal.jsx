@@ -53,38 +53,69 @@ const EditPackageModal = ({ isOpen, onClose, onPackageUpdated, packageId }) => {
             setLoading(true);
             const response = await api.get(`/admin/packages/${packageId}/details`);
             console.log('Package data loaded:', response.data);
-            const pkg = response.data;
+            const pkg = response.data.package; // Note: response.data.package for public endpoint
             
             // Transform the data to match our form structure
+            const hotels = pkg.modules?.filter(m => m.module_type === 'accommodation') || [];
+            const activities = pkg.modules?.filter(m => m.module_type === 'activity') || [];
+            
             setPackageData({
                 title: pkg.title || '',
                 description: pkg.description || '',
-                destination: pkg.destination ? {
-                    id: pkg.destination.location_id,
-                    name: pkg.destination.location_name,
-                    latitude: pkg.destination.latitude,
-                    longitude: pkg.destination.longitude,
-                    country: pkg.destination.country,
+                destination: pkg.destination_id ? {
+                    id: pkg.destination_id,
+                    name: pkg.destination_name,
+                    latitude: null, // Will be handled if needed
+                    longitude: null, // Will be handled if needed
+                    country: '', // Will be handled if needed
                     address: {
-                        cityName: pkg.destination.location_name,
-                        countryName: pkg.destination.country
+                        cityName: pkg.destination_name,
+                        countryName: ''
                     }
                 } : null,
                 startDate: pkg.start_date ? pkg.start_date.split('T')[0] : '',
                 endDate: pkg.end_date ? pkg.end_date.split('T')[0] : '',
                 groupSize: pkg.group_size || 1,
-                hotels: pkg.hotels || [],
-                activities: pkg.activities || [],
-                // Flight discount settings - load from package metadata
-                flightDiscountEnabled: pkg.flight_discount_settings?.enabled || false,
-                flightDiscountPercent: pkg.flight_discount_settings?.discount_percent || 25,
-                flightDiscountMaxAmount: pkg.flight_discount_settings?.max_discount_amount || 200,
-                flightDiscountValidityDays: pkg.flight_discount_settings?.validity_days || 90,
+                hotels: hotels.map(hotel => ({
+                    id: hotel.module_id,
+                    name: hotel.hotel_name || hotel.title,
+                    hotel_name: hotel.hotel_name,
+                    description: hotel.description || '',
+                    roomType: hotel.room_type || 'Standard',
+                    room_type: hotel.room_type,
+                    price: hotel.price || '',
+                    discount: '',
+                    optional: !hotel.included_by_default,
+                    rating: '',
+                    amenities: ''
+                })),
+                activities: activities.map(activity => ({
+                    id: activity.module_id,
+                    name: activity.activity_name || activity.title,
+                    activity_name: activity.activity_name,
+                    description: activity.description || '',
+                    type: activity.activity_type || 'adventure',
+                    activity_type: activity.activity_type,
+                    price: activity.price || '',
+                    discount: '',
+                    duration: activity.duration_minutes ? activity.duration_minutes / 60 : '',
+                    duration_minutes: activity.duration_minutes,
+                    startTime: activity.start_time ? activity.start_time.substring(0, 5) : '09:00',
+                    start_time: activity.start_time,
+                    endTime: activity.end_time ? activity.end_time.substring(0, 5) : '17:00',
+                    end_time: activity.end_time,
+                    optional: !activity.included_by_default
+                })),
+                // Flight discount settings - load from package metadata if available
+                flightDiscountEnabled: false, // Default to false since we don't have this data from public endpoint
+                flightDiscountPercent: 25,
+                flightDiscountMaxAmount: 200,
+                flightDiscountValidityDays: 90,
                 basePrice: pkg.price || '',
                 discountPercent: '',
                 finalPrice: pkg.price || '',
-                totalSlots: pkg.total_slots || '',
-                availableUntil: pkg.available_until ? pkg.available_until.split('T')[0] + 'T' + pkg.available_until.split('T')[1].substring(0, 5) : ''
+                totalSlots: '', // Not available from public endpoint
+                availableUntil: '' // Not available from public endpoint
             });
 
             // Load existing coupons for this package
@@ -417,11 +448,22 @@ const BasicInfoStep = ({ packageData, setPackageData }) => {
             </div>
 
             {showMapPicker && (
-                <MapPicker
-                    isOpen={showMapPicker}
-                    onClose={() => setShowMapPicker(false)}
-                    onLocationSelected={handleLocationSelected}
-                />
+                <div className="fixed inset-0 bg-black/50 flex items-center justify-center p-4 z-50">
+                    <div className="bg-gray-800 rounded-lg w-full max-w-4xl h-[600px] flex flex-col">
+                        <div className="flex justify-between items-center p-4 border-b border-gray-700">
+                            <h3 className="text-lg font-semibold text-white">Select Destination</h3>
+                            <button 
+                                onClick={() => setShowMapPicker(false)}
+                                className="text-gray-400 hover:text-white"
+                            >
+                                <X size={24} />
+                            </button>
+                        </div>
+                        <div className="flex-1 p-4">
+                            <MapPicker onLocationSelected={handleLocationSelected} />
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );
@@ -620,9 +662,29 @@ const HotelSelectionStep = ({ packageData, setPackageData }) => {
     const updateHotel = (index, field, value) => {
         setPackageData(prev => ({
             ...prev,
-            hotels: prev.hotels.map((hotel, i) => 
-                i === index ? { ...hotel, [field]: value } : hotel
-            )
+            hotels: prev.hotels.map((hotel, i) => {
+                if (i === index) {
+                    // Map frontend field names to both variants for compatibility
+                    const updates = { [field]: value };
+                    
+                    // Ensure both name variants are updated
+                    if (field === 'name') {
+                        updates.hotel_name = value;
+                    } else if (field === 'hotel_name') {
+                        updates.name = value;
+                    }
+                    
+                    // Ensure both room type variants are updated
+                    if (field === 'roomType') {
+                        updates.room_type = value;
+                    } else if (field === 'room_type') {
+                        updates.roomType = value;
+                    }
+                    
+                    return { ...hotel, ...updates };
+                }
+                return hotel;
+            })
         }));
     };
 
@@ -814,9 +876,49 @@ const ActivitySelectionStep = ({ packageData, setPackageData }) => {
     const updateActivity = (index, field, value) => {
         setPackageData(prev => ({
             ...prev,
-            activities: prev.activities.map((activity, i) => 
-                i === index ? { ...activity, [field]: value } : activity
-            )
+            activities: prev.activities.map((activity, i) => {
+                if (i === index) {
+                    // Map frontend field names to both variants for compatibility
+                    const updates = { [field]: value };
+                    
+                    // Ensure both name variants are updated
+                    if (field === 'name') {
+                        updates.activity_name = value;
+                    } else if (field === 'activity_name') {
+                        updates.name = value;
+                    }
+                    
+                    // Ensure both type variants are updated
+                    if (field === 'type') {
+                        updates.activity_type = value;
+                    } else if (field === 'activity_type') {
+                        updates.type = value;
+                    }
+                    
+                    // Handle time field mapping
+                    if (field === 'startTime') {
+                        updates.start_time = value;
+                    } else if (field === 'start_time') {
+                        updates.startTime = value;
+                    }
+                    
+                    if (field === 'endTime') {
+                        updates.end_time = value;
+                    } else if (field === 'end_time') {
+                        updates.endTime = value;
+                    }
+                    
+                    // Handle duration mapping
+                    if (field === 'duration') {
+                        updates.duration_minutes = value * 60; // Convert hours to minutes
+                    } else if (field === 'duration_minutes') {
+                        updates.duration = value / 60; // Convert minutes to hours
+                    }
+                    
+                    return { ...activity, ...updates };
+                }
+                return activity;
+            })
         }));
     };
 

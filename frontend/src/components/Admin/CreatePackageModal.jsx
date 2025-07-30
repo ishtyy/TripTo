@@ -15,22 +15,22 @@ const CreatePackageModal = ({ isOpen, onClose, onPackageCreated }) => {
         startDate: '',
         endDate: '',
         groupSize: 1,
-        
+
         // Components
         hotels: [],
         activities: [],
-        
+
         // Flight Discount Coupon Settings
         flightDiscountEnabled: true,
         flightDiscountPercent: 25,
         flightDiscountMaxAmount: 200,
         flightDiscountValidityDays: 90,
-        
+
         // Pricing
         basePrice: '',
         discountPercent: '',
         finalPrice: '',
-        
+
         // Availability
         totalSlots: '',
         availableUntil: ''
@@ -52,8 +52,8 @@ const CreatePackageModal = ({ isOpen, onClose, onPackageCreated }) => {
 
     // Handle location selection from map picker
     const handleLocationSelected = useCallback((locationData) => {
-        setPackageData(prev => ({ 
-            ...prev, 
+        setPackageData(prev => ({
+            ...prev,
             destination: {
                 id: `${locationData.latitude}-${locationData.longitude}`, // Use coordinates as unique ID
                 name: locationData.name || "Selected Location",
@@ -75,17 +75,17 @@ const CreatePackageModal = ({ isOpen, onClose, onPackageCreated }) => {
             const discount = isNaN(h.discount) ? 0 : h.discount;
             return sum + (price * (1 - discount / 100));
         }, 0);
-        
+
         const activityTotal = packageData.activities.reduce((sum, a) => {
             const price = isNaN(a.price) ? 0 : a.price;
             const discount = isNaN(a.discount) ? 0 : a.discount;
             return sum + (price * (1 - discount / 100));
         }, 0);
-        
+
         const basePrice = hotelTotal + activityTotal;
         const discountPercent = isNaN(packageData.discountPercent) ? 0 : packageData.discountPercent;
         const finalPrice = basePrice * (1 - discountPercent / 100);
-        
+
         setPackageData(prev => ({ ...prev, basePrice, finalPrice }));
     }, [packageData.hotels, packageData.activities, packageData.discountPercent]);
 
@@ -105,12 +105,12 @@ const CreatePackageModal = ({ isOpen, onClose, onPackageCreated }) => {
 
             // Validate required fields with specific error messages
             const missingFields = [];
-            
+
             if (!packageData.title) missingFields.push('Package Title');
             if (!packageData.destination) missingFields.push('Destination');
             if (!packageData.startDate) missingFields.push('Start Date');
             if (!packageData.endDate) missingFields.push('End Date');
-            
+
             if (missingFields.length > 0) {
                 toast.error(`Please fill in: ${missingFields.join(', ')}`);
                 setLoading(false);
@@ -124,13 +124,25 @@ const CreatePackageModal = ({ isOpen, onClose, onPackageCreated }) => {
                 return;
             }
 
+            const locationPayload = {
+                latitude: packageData.destination.latitude,
+                longitude: packageData.destination.longitude,
+                location_name: packageData.destination.name || "Selected Location",
+                country: packageData.destination.country || "Unknown Country",
+                description: `Location at ${packageData.destination.latitude.toFixed(4)}, ${packageData.destination.longitude.toFixed(4)}`,
+            };
+
+            const locationResponse = await api.post("/locations/find-or-create", locationPayload);
+            const locationId = locationResponse.data.location?.location_id;
+            if (!locationId) throw new Error("Could not obtain a valid location ID.");
+
             // Prepare the complete package data
             const packagePayload = {
                 title: packageData.title,
                 description: packageData.description,
                 price: packageData.finalPrice || 0,
                 // Note: created_by will be handled on backend (set to null for now)
-                destination: packageData.destination, // Send the full destination object
+                destination_id: locationId, // Send the full destination object
                 start_date: packageData.startDate,
                 end_date: packageData.endDate,
                 group_size: packageData.groupSize || 1,
@@ -168,7 +180,7 @@ const CreatePackageModal = ({ isOpen, onClose, onPackageCreated }) => {
             console.log('Sending package payload:', JSON.stringify(packagePayload, null, 2));
 
             // Use the comprehensive package creation endpoint
-            const response = await api.post('/admin/packages/complete', packagePayload);
+            const response = await api.post('/admin/packages/', packagePayload);
 
             toast.success('Package created successfully!');
             onPackageCreated();
@@ -223,7 +235,7 @@ const CreatePackageModal = ({ isOpen, onClose, onPackageCreated }) => {
                                 placeholder="e.g., Ultimate Bali Adventure"
                             />
                         </div>
-                        
+
                         <div>
                             <label className="block text-sm font-medium text-gray-300 mb-2">Description</label>
                             <textarea
@@ -287,16 +299,16 @@ const CreatePackageModal = ({ isOpen, onClose, onPackageCreated }) => {
 
             case 2:
                 return <HotelSelectionStep packageData={packageData} setPackageData={setPackageData} />;
-            
+
             case 3:
                 return <ActivitySelectionStep packageData={packageData} setPackageData={setPackageData} />;
-            
+
             case 4:
                 return <FlightDiscountStep packageData={packageData} setPackageData={setPackageData} />;
-            
+
             case 5:
                 return <PricingStep packageData={packageData} setPackageData={setPackageData} />;
-            
+
             default:
                 return null;
         }
@@ -319,13 +331,12 @@ const CreatePackageModal = ({ isOpen, onClose, onPackageCreated }) => {
                 <div className="px-6 py-4 border-b border-gray-700">
                     <div className="flex justify-between">
                         {steps.map((step) => (
-                            <div 
-                                key={step.id} 
+                            <div
+                                key={step.id}
                                 onClick={() => setCurrentStep(step.id)}
-                                className={`flex items-center space-x-2 cursor-pointer transition-all duration-200 px-3 py-2 rounded-lg hover:bg-gray-700 ${
-                                    currentStep === step.id ? 'text-orange-400 bg-orange-400/10' : 
-                                    currentStep > step.id ? 'text-green-400 hover:text-green-300' : 'text-gray-500 hover:text-gray-400'
-                                }`}
+                                className={`flex items-center space-x-2 cursor-pointer transition-all duration-200 px-3 py-2 rounded-lg hover:bg-gray-700 ${currentStep === step.id ? 'text-orange-400 bg-orange-400/10' :
+                                        currentStep > step.id ? 'text-green-400 hover:text-green-300' : 'text-gray-500 hover:text-gray-400'
+                                    }`}
                             >
                                 {step.icon}
                                 <span className="text-sm font-medium">{step.title}</span>
@@ -348,9 +359,9 @@ const CreatePackageModal = ({ isOpen, onClose, onPackageCreated }) => {
                     >
                         Previous
                     </button>
-                    
+
                     <span className="text-gray-400">Step {currentStep} of {steps.length}</span>
-                    
+
                     {currentStep === steps.length ? (
                         <button
                             onClick={handleSubmit}
@@ -383,9 +394,9 @@ const FlightDiscountStep = ({ packageData, setPackageData }) => {
                     type="checkbox"
                     id="flightDiscountEnabled"
                     checked={packageData.flightDiscountEnabled}
-                    onChange={(e) => setPackageData(prev => ({ 
-                        ...prev, 
-                        flightDiscountEnabled: e.target.checked 
+                    onChange={(e) => setPackageData(prev => ({
+                        ...prev,
+                        flightDiscountEnabled: e.target.checked
                     }))}
                     className="w-5 h-5 text-orange-500 bg-gray-700 border-gray-600 rounded focus:ring-orange-500 focus:ring-2"
                 />
@@ -397,7 +408,7 @@ const FlightDiscountStep = ({ packageData, setPackageData }) => {
             {packageData.flightDiscountEnabled && (
                 <div className="space-y-4 bg-gray-800/50 p-4 rounded-lg border border-gray-600">
                     <h4 className="font-medium text-gray-300">Coupon Settings</h4>
-                    
+
                     <div className="grid grid-cols-2 gap-4">
                         <div>
                             <label className="block text-sm font-medium text-gray-300 mb-2">Discount Percentage</label>
@@ -409,8 +420,8 @@ const FlightDiscountStep = ({ packageData, setPackageData }) => {
                                     value={packageData.flightDiscountPercent}
                                     onChange={(e) => {
                                         const value = parseInt(e.target.value) || 25;
-                                        setPackageData(prev => ({ 
-                                            ...prev, 
+                                        setPackageData(prev => ({
+                                            ...prev,
                                             flightDiscountPercent: Math.min(50, Math.max(5, value))
                                         }));
                                     }}
@@ -420,7 +431,7 @@ const FlightDiscountStep = ({ packageData, setPackageData }) => {
                             </div>
                             <p className="text-xs text-gray-500 mt-1">Between 5% and 50%</p>
                         </div>
-                        
+
                         <div>
                             <label className="block text-sm font-medium text-gray-300 mb-2">Maximum Discount Amount</label>
                             <div className="relative">
@@ -433,8 +444,8 @@ const FlightDiscountStep = ({ packageData, setPackageData }) => {
                                     value={packageData.flightDiscountMaxAmount}
                                     onChange={(e) => {
                                         const value = parseFloat(e.target.value) || 200;
-                                        setPackageData(prev => ({ 
-                                            ...prev, 
+                                        setPackageData(prev => ({
+                                            ...prev,
                                             flightDiscountMaxAmount: Math.min(1000, Math.max(50, value))
                                         }));
                                     }}
@@ -443,13 +454,13 @@ const FlightDiscountStep = ({ packageData, setPackageData }) => {
                             </div>
                             <p className="text-xs text-gray-500 mt-1">Maximum savings per booking</p>
                         </div>
-                        
+
                         <div>
                             <label className="block text-sm font-medium text-gray-300 mb-2">Coupon Validity (Days)</label>
                             <select
                                 value={packageData.flightDiscountValidityDays}
-                                onChange={(e) => setPackageData(prev => ({ 
-                                    ...prev, 
+                                onChange={(e) => setPackageData(prev => ({
+                                    ...prev,
                                     flightDiscountValidityDays: parseInt(e.target.value)
                                 }))}
                                 className="w-full px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-white focus:ring-2 focus:ring-orange-500"
@@ -462,13 +473,13 @@ const FlightDiscountStep = ({ packageData, setPackageData }) => {
                                 <option value={365}>1 year</option>
                             </select>
                         </div>
-                        
+
                         <div className="flex items-end">
                             <div className="w-full">
                                 <label className="block text-sm font-medium text-gray-300 mb-2">Preview Coupon Code</label>
                                 <div className="px-4 py-3 bg-gray-700 border border-gray-600 rounded-lg text-gray-400 font-mono text-sm">
-                                    {packageData.destination?.name ? 
-                                        `${packageData.destination.name.slice(0,4).toUpperCase()}${packageData.flightDiscountPercent}-XXXXXX` : 
+                                    {packageData.destination?.name ?
+                                        `${packageData.destination.name.slice(0, 4).toUpperCase()}${packageData.flightDiscountPercent}-XXXXXX` :
                                         `TRIP${packageData.flightDiscountPercent}-XXXXXX`
                                     }
                                 </div>
@@ -476,7 +487,7 @@ const FlightDiscountStep = ({ packageData, setPackageData }) => {
                             </div>
                         </div>
                     </div>
-                    
+
                     <div className="bg-green-900/20 border border-green-700 rounded-lg p-4">
                         <h5 className="font-medium text-green-400 mb-2">How it works:</h5>
                         <ul className="text-sm text-gray-300 space-y-1">
@@ -493,7 +504,7 @@ const FlightDiscountStep = ({ packageData, setPackageData }) => {
             {!packageData.flightDiscountEnabled && (
                 <div className="bg-gray-800/30 border border-gray-600 rounded-lg p-4">
                     <p className="text-gray-400 text-sm">
-                        📝 <strong>Flight discount disabled:</strong> Customers will book this package without flight discounts. 
+                        📝 <strong>Flight discount disabled:</strong> Customers will book this package without flight discounts.
                         They can still search and book flights separately through our flight booking system.
                     </p>
                 </div>
@@ -527,7 +538,7 @@ const HotelSelectionStep = ({ packageData, setPackageData }) => {
     return (
         <div className="space-y-6">
             <h3 className="text-lg font-semibold text-orange-400">Add Hotels</h3>
-            
+
             <div className="grid grid-cols-2 gap-4">
                 <input
                     placeholder="Hotel Name"
@@ -581,7 +592,7 @@ const HotelSelectionStep = ({ packageData, setPackageData }) => {
                     <span>Optional</span>
                 </label>
             </div>
-            
+
             <button
                 onClick={addHotel}
                 className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -648,14 +659,14 @@ const ActivitySelectionStep = ({ packageData, setPackageData }) => {
     };
 
     const activityTypes = [
-        'adventure', 'leisure', 'cultural', 
+        'adventure', 'leisure', 'cultural',
         'nature', 'sports'
     ];
 
     return (
         <div className="space-y-6">
             <h3 className="text-lg font-semibold text-orange-400">Add Activities</h3>
-            
+
             <div className="grid grid-cols-2 gap-4">
                 <input
                     placeholder="Activity Name"
@@ -735,7 +746,7 @@ const ActivitySelectionStep = ({ packageData, setPackageData }) => {
                     <span>Optional</span>
                 </label>
             </div>
-            
+
             <button
                 onClick={addActivity}
                 className="flex items-center space-x-2 px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
@@ -779,7 +790,7 @@ const PricingStep = ({ packageData, setPackageData }) => {
     return (
         <div className="space-y-6">
             <h3 className="text-lg font-semibold text-orange-400">Pricing & Availability</h3>
-            
+
             <div className="grid grid-cols-2 gap-4">
                 <div>
                     <label className="block text-sm font-medium text-gray-300 mb-2">Package Discount %</label>

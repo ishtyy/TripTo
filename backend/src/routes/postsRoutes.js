@@ -1,30 +1,51 @@
-const express = require("express");
-const db = require("../config/db");
-const { checkJwtMiddleware } = require("../middleware/authMiddleware");
+import express from "express";
+import db from "../config/db.js";
+import { checkJwtMiddleware } from "../middleware/authMiddleware.js";
+import { getTrendingTags, addReactionToPost, incrementViewCount, postSelectQuery, getPostsWithUserVote } from '../controllers/postController.js';
 
 const router = express.Router();
 
-const postSelectQuery = `
-    SELECT
-        p.post_id, p.title, p.content, p.created_at, p.author_id, p.location_id,
-        p.upvote_count, p.downvote_count, p.cascade_count, p.parent_post_id,
-        json_build_object('username', up.username, 'profile_picture_url', up.profile_picture_url) AS user_profile,
-        json_build_object('location_name', l.location_name, 'country', l.country) AS location,
-        CASE
-            WHEN p.parent_post_id IS NOT NULL THEN json_build_object(
-                'post_id', parent.post_id,
-                'title', parent.title,
-                'content', parent.content,
-                'author', json_build_object('username', parent_author.username)
-            )
-            ELSE NULL
-        END AS parent_post
-    FROM blogpost p
-    LEFT JOIN user_profile up ON p.author_id = up.user_id
-    LEFT JOIN location l ON p.location_id = l.location_id
-    LEFT JOIN blogpost AS parent ON p.parent_post_id = parent.post_id
-    LEFT JOIN user_profile AS parent_author ON parent.author_id = parent_author.user_id
-`;
+// Specific routes first (before parameterized routes)
+router.get('/trending-tags', getTrendingTags);
+router.get('/following', checkJwtMiddleware, async (req, res, next) => {
+    const { limit = 20, offset = 0 } = req.query;
+    const userId = req.user.user_id;
+    
+    try {
+        const query = `
+            ${postSelectQuery}
+            INNER JOIN followers f ON p.author_id = f.followed_id
+            WHERE f.follower_id = $1
+            ORDER BY p.created_at DESC
+            LIMIT $2 OFFSET $3
+        `;
+        
+        const posts = await getPostsWithUserVote(query, [userId, limit, offset], req);
+        res.json({ posts: posts || [] });
+    } catch (err) {
+        next(err);
+    }
+});
+router.get('/by-tag/:tagName', async (req, res, next) => {
+    const { tagName } = req.params;
+    const { limit = 20, offset = 0 } = req.query;
+    
+    try {
+        const query = `
+            ${postSelectQuery}
+            INNER JOIN blog_post_tags bpt ON p.post_id = bpt.post_id
+            INNER JOIN blog_tags bt ON bpt.tag_id = bt.tag_id
+            WHERE LOWER(bt.tag_name) = LOWER($1)
+            ORDER BY p.created_at DESC
+            LIMIT $2 OFFSET $3
+        `;
+        
+        const posts = await getPostsWithUserVote(query, [tagName, limit, offset], req);
+        res.json({ posts: posts || [], tag: tagName });
+    } catch (err) {
+        next(err);
+    }
+});
 
 router.get("/", async (req, res, next) => {
   try {
@@ -49,8 +70,8 @@ router.get("/", async (req, res, next) => {
       query += ` LIMIT $${params.length}`;
     }
 
-    const { rows } = await db.query(query, params);
-    res.json({ posts: rows || [] });
+    const posts = await getPostsWithUserVote(query, params, req);
+    res.json({ posts: posts || [] });
   } catch (err) {
     next(err);
   }
@@ -60,9 +81,9 @@ router.get("/:postId", async (req, res, next) => {
     const { postId } = req.params;
     try {
         const query = `${postSelectQuery} WHERE p.post_id = $1`;
-        const { rows } = await db.query(query, [postId]);
-        if (rows.length === 0) return res.status(404).json({ error: "Post not found." });
-        res.json({ post: rows[0] });
+        const posts = await getPostsWithUserVote(query, [postId], req);
+        if (posts.length === 0) return res.status(404).json({ error: "Post not found." });
+        res.json({ post: posts[0] });
     } catch (err) {
         next(err);
     }
@@ -70,7 +91,7 @@ router.get("/:postId", async (req, res, next) => {
 
 router.post("/:postId/vote", checkJwtMiddleware, async (req, res, next) => {
     const { postId } = req.params;
-    const user_id = req.userId;
+    const user_id = req.user.user_id;
     const { vote_type } = req.body;
 
     if (vote_type !== 1 && vote_type !== -1) {
@@ -113,7 +134,7 @@ router.post("/:postId/vote", checkJwtMiddleware, async (req, res, next) => {
 
 router.post("/:postId/cascade", checkJwtMiddleware, async (req, res, next) => {
     const { postId: parent_post_id } = req.params;
-    const user_id = req.userId;
+    const user_id = req.user.user_id;
     const { title, content } = req.body;
 
     if (!title || !content) {
@@ -148,32 +169,133 @@ router.post("/:postId/cascade", checkJwtMiddleware, async (req, res, next) => {
 
 router.post("/", checkJwtMiddleware, async (req, res, next) => {
   try {
-    const { title, content, location_id } = req.body;
-    const author_id = req.userId;
+    const { title, content, location_id, tags = [] } = req.body;
+    const author_id = req.user.user_id;
 
     if (!title || !content || !location_id) {
       return res.status(400).json({ error: "Title, content, and location_id are required." });
     }
 
-    const now = new Date();
-    const insertQuery = `
-      WITH inserted_post AS (
+    const result = await db.tx(async t => {
+      const now = new Date();
+      
+      // Insert the post
+      const insertQuery = `
         INSERT INTO blogpost (author_id, location_id, title, content, created_at, last_updated_at)
         VALUES ($1, $2, $3, $4, $5, $6)
         RETURNING *
-      )
-      SELECT ip.*, json_build_object('username', up.username, 'profile_picture_url', up.profile_picture_url) as user_profile, json_build_object('location_name', l.location_name, 'country', l.country) as location
-      FROM inserted_post ip
-      JOIN user_profile up ON ip.author_id = up.user_id
-      JOIN location l ON ip.location_id = l.location_id;
-    `;
-    const values = [author_id, location_id, title.trim(), content.trim(), now, now];
+      `;
+      const post = await t.one(insertQuery, [author_id, location_id, title.trim(), content.trim(), now, now]);
+      
+      // Handle tags if provided
+      if (tags && tags.length > 0) {
+        try {
+          // Create or find tags
+          for (const tagName of tags.slice(0, 10)) { // Limit to 10 tags
+            if (tagName.trim()) {
+              // Try to insert tag or ignore if exists
+              await t.none(`
+                INSERT INTO blog_tags (tag_name, usage_count) 
+                VALUES ($1, 1) 
+                ON CONFLICT (tag_name) DO UPDATE SET usage_count = blog_tags.usage_count + 1
+              `, [tagName.trim().toLowerCase()]);
+              
+              // Link tag to post
+              await t.none(`
+                INSERT INTO blog_post_tags (post_id, tag_id) 
+                SELECT $1, tag_id FROM blog_tags WHERE tag_name = $2
+                ON CONFLICT DO NOTHING
+              `, [post.post_id, tagName.trim().toLowerCase()]);
+            }
+          }
+        } catch (tagError) {
+          console.log('Tags table not found, skipping tag processing:', tagError.message);
+        }
+      }
+      
+      // Get the complete post with user and location data
+      const completePost = await t.one(`
+        SELECT 
+          p.*, 
+          json_build_object('username', up.username, 'profile_picture_url', up.profile_picture_url) as user_profile, 
+          json_build_object('location_name', l.location_name, 'country', l.country) as location
+        FROM blogpost p
+        JOIN user_profiles up ON p.author_id = up.user_id
+        JOIN locations l ON p.location_id = l.location_id
+        WHERE p.post_id = $1
+      `, [post.post_id]);
+      
+      return completePost;
+    });
     
-    const { rows } = await db.query(insertQuery, values);
-    res.status(201).json({ post: rows[0] });
+    res.status(201).json({ post: result });
   } catch (err) {
     next(err);
   }
 });
 
-module.exports = router;
+// New routes
+router.post('/:postId/react', checkJwtMiddleware, addReactionToPost);
+router.post('/:postId/view', incrementViewCount);
+
+// Get comments for a post
+router.get("/:postId/comments", async (req, res, next) => {
+    const { postId } = req.params;
+    try {
+        const query = `
+            SELECT 
+                bc.comment_id, bc.content, bc.created_at, bc.upvote_count, bc.downvote_count,
+                json_build_object('username', up.username, 'profile_picture_url', up.profile_picture_url) AS user
+            FROM blog_comment bc
+            LEFT JOIN user_profiles up ON bc.user_id = up.user_id
+            WHERE bc.post_id = $1
+            ORDER BY bc.created_at ASC
+        `;
+        const rows = await db.any(query, [postId]);
+        res.json(rows || []);
+    } catch (err) {
+        next(err);
+    }
+});
+
+// Add a comment to a post
+router.post("/:postId/comments", checkJwtMiddleware, async (req, res, next) => {
+    const { postId } = req.params;
+    const user_id = req.user.user_id;
+    const { content } = req.body;
+
+    if (!content || !content.trim()) {
+        return res.status(400).json({ error: "Comment content is required." });
+    }
+
+    try {
+        const result = await db.tx(async t => {
+            // Insert the comment
+            const insertQuery = `
+                INSERT INTO blog_comment (post_id, user_id, content, created_at)
+                VALUES ($1, $2, $3, $4)
+                RETURNING comment_id, content, created_at
+            `;
+            const commentResult = await t.one(insertQuery, [postId, user_id, content.trim(), new Date()]);
+            
+            // Get user profile for the response
+            const userResult = await t.one('SELECT username, profile_picture_url FROM user_profiles WHERE user_id = $1', [user_id]);
+            
+            // Update comment count on the post
+            await t.none('UPDATE blogpost SET comment_count = comment_count + 1 WHERE post_id = $1', [postId]);
+            
+            return {
+                ...commentResult,
+                user: userResult,
+                upvote_count: 0,
+                downvote_count: 0
+            };
+        });
+        
+        res.status(201).json(result);
+    } catch (err) {
+        next(err);
+    }
+});
+
+export default router;

@@ -1,5 +1,6 @@
 // src/components/common/ConfirmationModal.jsx
 import React from 'react';
+import ReactDOM from 'react-dom';
 import { AnimatePresence, motion } from 'framer-motion';
 import { AlertTriangle, X } from 'lucide-react';
 
@@ -8,14 +9,14 @@ const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, message, confirm
 
     const confirmButtonColor = type === 'danger' ? 'bg-red-600 hover:bg-red-700' : 'bg-blue-600 hover:bg-blue-700';
 
-    return (
+    return ReactDOM.createPortal(
         <AnimatePresence>
             {isOpen && (
                 <motion.div
                     initial={{ opacity: 0 }}
                     animate={{ opacity: 1 }}
                     exit={{ opacity: 0 }}
-                    className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center p-4 z-50"
+                    className="fixed inset-0 bg-black bg-opacity-70 flex justify-center items-center p-4 z-[9999]"
                     onClick={onClose} // Close on backdrop click
                 >
                     <motion.div
@@ -55,7 +56,8 @@ const ConfirmationModal = ({ isOpen, onClose, onConfirm, title, message, confirm
                     </motion.div>
                 </motion.div>
             )}
-        </AnimatePresence>
+        </AnimatePresence>,
+        document.getElementById("modal-root")
     );
 };
 

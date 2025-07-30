@@ -1,4 +1,3 @@
-// src/controllers/couponController.js
 import db from '../config/db.js';
 import asyncHandler from '../middleware/asyncHandler.js';
 
@@ -292,7 +291,7 @@ export const useCoupon = asyncHandler(async (req, res) => {
 // Get user's available coupons
 export const getUserCoupons = asyncHandler(async (req, res) => {
     const { user_id } = req.params;
-    const { type, status = 'active' } = req.query; // 'active' is default, can be 'all'
+    const { type, status = 'available' } = req.query; // Changed default to 'available'
 
     try {
         let query = `
@@ -314,7 +313,7 @@ export const getUserCoupons = asyncHandler(async (req, res) => {
                     WHERE cu.coupon_id = c.coupon_id
                 ) as times_used
             FROM coupons c 
-            WHERE c.assigned_to_user IS NULL OR c.assigned_to_user = $1`; // Coupons can be for specific user or general
+            WHERE c.assigned_to_user = $1`; // Only show coupons specifically assigned to this user
 
         const params = [user_id];
         let paramIndex = 2;
@@ -323,16 +322,19 @@ export const getUserCoupons = asyncHandler(async (req, res) => {
         if (status !== 'all') {
             if (status === 'available') {
                 query += ` AND (c.valid_until >= NOW() AND c.valid_from <= NOW() AND c.status = 'active' AND 
-                               (c.usage_limit IS NULL OR c.usage_limit = 0 OR 
-                                (SELECT COALESCE(COUNT(*), 0) FROM coupon_usage cu WHERE cu.coupon_id = c.coupon_id AND cu.user_id = $1) < c.usage_limit))`;
+                                (c.usage_limit IS NULL OR c.usage_limit = 0 OR 
+                                 (SELECT COALESCE(COUNT(*), 0) FROM coupon_usage cu WHERE cu.coupon_id = c.coupon_id AND cu.user_id = $1) < c.usage_limit))`;
             } else if (status === 'used_by_user') {
-                query += ` AND (SELECT COALESCE(COUNT(*), 0) FROM coupon_usage cu WHERE cu.coupon_id = c.coupon_id AND cu.user_id = $1) >= c.usage_limit`;
+                query += ` AND c.usage_limit > 0 AND (SELECT COALESCE(COUNT(*), 0) FROM coupon_usage cu WHERE cu.coupon_id = c.coupon_id AND cu.user_id = $1) >= c.usage_limit`;
             } else if (status === 'expired') {
                 query += ` AND c.valid_until < NOW()`;
             } else if (status === 'not_active_yet') {
                 query += ` AND c.valid_from > NOW()`;
             } else if (status === 'inactive') {
                 query += ` AND c.status != 'active'`;
+            } else {
+                // For 'active' or any other status, show active coupons
+                query += ` AND c.status = 'active'`;
             }
         }
         
@@ -368,25 +370,25 @@ export const getAllCoupons = asyncHandler(async (req, res) => {
     try {
         let query = `
             SELECT c.*, 
-                u.first_name, u.last_name, u.email,
-                (
-                    SELECT COUNT(*) 
-                    FROM coupon_usage cu 
-                    WHERE cu.coupon_id = c.coupon_id
-                ) as times_used,
-                CASE 
-                    WHEN c.usage_limit > 0 AND (
-                        SELECT COALESCE(COUNT(*), 0) 
-                        FROM coupon_usage cu 
-                        WHERE cu.coupon_id = c.coupon_id
-                    ) >= c.usage_limit THEN 'used'
-                    WHEN c.valid_until < NOW() THEN 'expired'
-                    WHEN c.valid_from > NOW() THEN 'not_active_yet'
-                    WHEN c.status != 'active' THEN 'inactive'
-                    ELSE 'available'
-                END as current_status
+                   u.username, u.email,
+                   (
+                       SELECT COUNT(*) 
+                       FROM coupon_usage cu 
+                       WHERE cu.coupon_id = c.coupon_id
+                   ) as times_used,
+                   CASE 
+                       WHEN c.usage_limit > 0 AND (
+                           SELECT COALESCE(COUNT(*), 0) 
+                           FROM coupon_usage cu 
+                           WHERE cu.coupon_id = c.coupon_id
+                       ) >= c.usage_limit THEN 'used'
+                       WHEN c.valid_until < NOW() THEN 'expired'
+                       WHEN c.valid_from > NOW() THEN 'not_active_yet'
+                       WHEN c.status != 'active' THEN 'inactive'
+                       ELSE 'available'
+                   END as current_status
             FROM coupons c 
-            LEFT JOIN users u ON c.assigned_to_user = u.user_id
+            LEFT JOIN user_profiles u ON c.assigned_to_user = u.user_id
             WHERE 1=1`;
 
         const params = [];
@@ -482,25 +484,25 @@ export const getPackageCoupons = asyncHandler(async (req, res) => {
     try {
         let query = `
             SELECT c.*, 
-                u.first_name, u.last_name, u.email,
-                (
-                    SELECT COUNT(*) 
-                    FROM coupon_usage cu 
-                    WHERE cu.coupon_id = c.coupon_id
-                ) as times_used,
-                CASE 
-                    WHEN c.usage_limit > 0 AND (
-                        SELECT COALESCE(COUNT(*), 0) 
-                        FROM coupon_usage cu 
-                        WHERE cu.coupon_id = c.coupon_id
-                    ) >= c.usage_limit THEN 'used'
-                    WHEN c.valid_until < NOW() THEN 'expired'
-                    WHEN c.valid_from > NOW() THEN 'not_active_yet'
-                    WHEN c.status != 'active' THEN 'inactive'
-                    ELSE 'available'
-                END as current_status
+                   u.username, u.email,
+                   (
+                       SELECT COUNT(*) 
+                       FROM coupon_usage cu 
+                       WHERE cu.coupon_id = c.coupon_id
+                   ) as times_used,
+                   CASE 
+                       WHEN c.usage_limit > 0 AND (
+                           SELECT COALESCE(COUNT(*), 0) 
+                           FROM coupon_usage cu 
+                           WHERE cu.coupon_id = c.coupon_id
+                       ) >= c.usage_limit THEN 'used'
+                       WHEN c.valid_until < NOW() THEN 'expired'
+                       WHEN c.valid_from > NOW() THEN 'not_active_yet'
+                       WHEN c.status != 'active' THEN 'inactive'
+                       ELSE 'available'
+                   END as current_status
             FROM coupons c 
-            LEFT JOIN users u ON c.assigned_to_user = u.user_id
+            LEFT JOIN user_profiles u ON c.assigned_to_user = u.user_id
             WHERE c.package_id = $1`;
 
         const params = [package_id];
@@ -509,8 +511,8 @@ export const getPackageCoupons = asyncHandler(async (req, res) => {
             // Apply status filter based on 'current_status' derived field
             if (status === 'available') {
                 query += ` AND (c.valid_until >= NOW() AND c.valid_from <= NOW() AND c.status = 'active' AND 
-                               (c.usage_limit IS NULL OR c.usage_limit = 0 OR 
-                                (SELECT COALESCE(COUNT(*), 0) FROM coupon_usage cu WHERE cu.coupon_id = c.coupon_id) < c.usage_limit))`;
+                                (c.usage_limit IS NULL OR c.usage_limit = 0 OR 
+                                 (SELECT COALESCE(COUNT(*), 0) FROM coupon_usage cu WHERE cu.coupon_id = c.coupon_id) < c.usage_limit))`;
             } else if (status === 'used') {
                 query += ` AND (SELECT COALESCE(COUNT(*), 0) FROM coupon_usage cu WHERE cu.coupon_id = c.coupon_id) >= c.usage_limit`;
             } else if (status === 'expired') {

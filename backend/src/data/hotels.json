@@ -1,0 +1,112 @@
+[
+  {
+    "id": 1,
+    "name": "Luxury Paris Hotel",
+    "location": "Paris, France",
+    "rating": 4.8,
+    "price_per_night": 250,
+    "amenities": ["wifi", "parking", "breakfast", "restaurant", "spa", "gym"],
+    "description": "A luxurious hotel in the heart of Paris with stunning city views",
+    "available_rooms": 15,
+    "image_url": "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=500"
+  },
+  {
+    "id": 2,
+    "name": "Tokyo Business Hotel",
+    "location": "Tokyo, Japan",
+    "rating": 4.6,
+    "price_per_night": 180,
+    "amenities": ["wifi", "breakfast", "restaurant", "gym"],
+    "description": "Modern business hotel near Tokyo Station",
+    "available_rooms": 8,
+    "image_url": "https://images.unsplash.com/photo-1564501049412-61c2a3083791?w=500"
+  },
+  {
+    "id": 3,
+    "name": "New York City Center",
+    "location": "New York, USA",
+    "rating": 4.7,
+    "price_per_night": 320,
+    "amenities": ["wifi", "parking", "restaurant", "spa", "gym"],
+    "description": "Premier hotel in Manhattan with rooftop views",
+    "available_rooms": 12,
+    "image_url": "https://images.unsplash.com/photo-1520250497591-112f2f40a3f4?w=500"
+  },
+  {
+    "id": 4,
+    "name": "London Heritage Hotel",
+    "location": "London, UK",
+    "rating": 4.5,
+    "price_per_night": 280,
+    "amenities": ["wifi", "breakfast", "restaurant", "spa"],
+    "description": "Historic hotel with traditional British elegance",
+    "available_rooms": 6,
+    "image_url": "https://images.unsplash.com/photo-1566073771259-6a8506099945?w=500"
+  },
+  {
+    "id": 5,
+    "name": "Dubai Marina Resort",
+    "location": "Dubai, UAE",
+    "rating": 4.9,
+    "price_per_night": 450,
+    "amenities": ["wifi", "parking", "breakfast", "restaurant", "spa", "gym"],
+    "description": "Luxurious resort with marina and beach access",
+    "available_rooms": 20,
+    "image_url": "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=500"
+  },
+  {
+    "id": 6,
+    "name": "Sydney Harbor View",
+    "location": "Sydney, Australia",
+    "rating": 4.4,
+    "price_per_night": 200,
+    "amenities": ["wifi", "restaurant", "gym"],
+    "description": "Waterfront hotel with Opera House views",
+    "available_rooms": 10,
+    "image_url": "https://images.unsplash.com/photo-1571896349842-33c89424de2d?w=500"
+  },
+  {
+    "id": 7,
+    "name": "Barcelona Beach Hotel",
+    "location": "Barcelona, Spain",
+    "rating": 4.3,
+    "price_per_night": 160,
+    "amenities": ["wifi", "breakfast", "restaurant"],
+    "description": "Beachfront hotel near Gothic Quarter",
+    "available_rooms": 14,
+    "image_url": "https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?w=500"
+  },
+  {
+    "id": 8,
+    "name": "Rome Historic Palace",
+    "location": "Rome, Italy",
+    "rating": 4.6,
+    "price_per_night": 220,
+    "amenities": ["wifi", "breakfast", "restaurant", "spa"],
+    "description": "Renaissance palace converted to luxury hotel",
+    "available_rooms": 7,
+    "image_url": "https://images.unsplash.com/photo-1551882547-ff40c63fe5fa?w=500"
+  },
+  {
+    "id": 9,
+    "name": "Bangkok Riverside Hotel",
+    "location": "Bangkok, Thailand",
+    "rating": 4.2,
+    "price_per_night": 120,
+    "amenities": ["wifi", "breakfast", "restaurant", "spa"],
+    "description": "Riverside hotel with traditional Thai hospitality",
+    "available_rooms": 18,
+    "image_url": "https://images.unsplash.com/photo-1571003123894-1f0594d2b5d9?w=500"
+  },
+  {
+    "id": 10,
+    "name": "Cape Town Mountain Lodge",
+    "location": "Cape Town, South Africa",
+    "rating": 4.7,
+    "price_per_night": 190,
+    "amenities": ["wifi", "parking", "restaurant", "spa", "gym"],
+    "description": "Mountain lodge with Table Mountain views",
+    "available_rooms": 11,
+    "image_url": "https://images.unsplash.com/photo-1582719478250-c89cae4dc85b?w=500"
+  }
+]

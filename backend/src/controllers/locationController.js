@@ -200,3 +200,46 @@ export const importAirportsFromJson = asyncHandler(async (req, res) => {
         res.status(500).json({ error: 'Failed to import airport data: ' + error.message });
     }
 });
+
+// Search locations by query
+export const searchLocations = asyncHandler(async (req, res) => {
+    const { q, limit = 10 } = req.query;
+    
+    if (!q || q.trim().length < 2) {
+        return res.status(400).json({ error: 'Query must be at least 2 characters long' });
+    }
+    
+    try {
+        const searchQuery = `
+            SELECT location_id, location_name, country, iata_code, latitude, longitude
+            FROM locations 
+            WHERE 
+                location_name ILIKE $1 
+                OR country ILIKE $1 
+                OR iata_code ILIKE $2
+            ORDER BY 
+                CASE 
+                    WHEN iata_code ILIKE $2 THEN 1
+                    WHEN location_name ILIKE $3 THEN 2
+                    ELSE 3
+                END,
+                location_name
+            LIMIT $4
+        `;
+        
+        const searchPattern = `%${q.trim()}%`;
+        const exactPattern = `${q.trim().toUpperCase()}%`;
+        
+        const locations = await db.any(searchQuery, [
+            searchPattern,  // $1
+            exactPattern,   // $2
+            exactPattern,   // $3
+            parseInt(limit) // $4
+        ]);
+        
+        res.json({ locations });
+    } catch (error) {
+        console.error('Location search error:', error);
+        res.status(500).json({ error: 'Failed to search locations' });
+    }
+});

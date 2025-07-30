@@ -5,9 +5,9 @@ import {
     createActivity,
     createPackage,
     addModuleToPackage,
-    // createCompletePackage, // Temporarily commented out - function missing
-    // getPackageDetails,     // Temporarily commented out - function missing  
-    // updatePackage,         // Temporarily commented out - function missing
+    createCompletePackage,
+    getPackageDetails,
+    updatePackage,
 } from '../../controllers/packageController.js';
 import db from '../../config/db.js';
 
@@ -53,11 +53,11 @@ router.post('/flight', createFlight);
 router.post('/accommodation', createAccommodation);
 router.post('/activity', createActivity);
 router.post('/', createPackage);
-// router.post('/complete', createCompletePackage); // Temporarily commented out - function missing
+router.post('/complete', createCompletePackage); // Temporarily commented out - function missing
 router.post('/:packageId/modules', addModuleToPackage);
 
 // Package details and update routes - temporarily commented out
-// router.get('/:packageId/details', getPackageDetails);
-// router.put('/:packageId', updatePackage);
+router.get('/:packageId/details', getPackageDetails);
+router.put('/:packageId', updatePackage);
 
 export default router;

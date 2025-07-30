@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
-import { X, Send, ArrowUp, ArrowDown, MessageSquare, GitBranch } from 'lucide-react';
+import { X, Send, ArrowUp, ArrowDown, MessageSquare, GitBranch, ChevronLeft, ChevronRight, Tag, MapPin } from 'lucide-react';
 import api from '../../services/api';
-import { Link } from 'react-router-dom';
+import { postsAPI } from '../../services/api';
+import { Link, useNavigate } from 'react-router-dom';
 import toast from 'react-hot-toast';
 
 // A dedicated component to display a single comment
@@ -22,7 +23,7 @@ const Comment = ({ comment }) => (
     </div>
 );
 
-export default function ViewPostModal({ open, onClose, post, loggedInUser, onTriggerSignIn, onCascade }) {
+export default function ViewPostModal({ open, onClose, post, loggedInUser, onTriggerSignIn, onCascade, allPosts = [], currentIndex = 0, onNavigate }) {
     const [localUpvotes, setLocalUpvotes] = useState(0);
     const [localDownvotes, setLocalDownvotes] = useState(0);
     const [userVote, setUserVote] = useState(null);
@@ -30,6 +31,8 @@ export default function ViewPostModal({ open, onClose, post, loggedInUser, onTri
     const [comments, setComments] = useState([]);
     const [newComment, setNewComment] = useState('');
     const [loadingComments, setLoadingComments] = useState(false);
+    
+    const navigate = useNavigate();
 
     // This effect runs whenever a new post is opened in the modal.
     useEffect(() => {
@@ -45,8 +48,35 @@ export default function ViewPostModal({ open, onClose, post, loggedInUser, onTri
                 .then(res => setComments(res.data || []))
                 .catch(err => console.error("Failed to fetch comments", err))
                 .finally(() => setLoadingComments(false));
+
+            // Increment view count
+            postsAPI.incrementViewCount(post.post_id).catch(err => 
+                console.error("Failed to increment view count", err)
+            );
         }
     }, [open, post]);
+
+    // Keyboard navigation
+    useEffect(() => {
+        const handleKeyDown = (e) => {
+            if (!open) return;
+            
+            if (e.key === 'Escape') {
+                onClose();
+            } else if (e.key === 'ArrowUp' && onNavigate && currentIndex > 0) {
+                e.preventDefault();
+                onNavigate(currentIndex - 1);
+            } else if (e.key === 'ArrowDown' && onNavigate && currentIndex < allPosts.length - 1) {
+                e.preventDefault();
+                onNavigate(currentIndex + 1);
+            }
+        };
+
+        if (open) {
+            document.addEventListener('keydown', handleKeyDown);
+            return () => document.removeEventListener('keydown', handleKeyDown);
+        }
+    }, [open, onClose, onNavigate, currentIndex, allPosts.length]);
 
     const handleVote = async (voteType) => {
         if (!loggedInUser) {
@@ -91,11 +121,34 @@ export default function ViewPostModal({ open, onClose, post, loggedInUser, onTri
         }
     };
 
+    const canNavigatePrev = onNavigate && currentIndex > 0;
+    const canNavigateNext = onNavigate && currentIndex < allPosts.length - 1;
+
     if (!open || !post) return null;
 
     return (
         <div className="fixed inset-0 bg-black bg-opacity-75 flex items-center justify-center z-50 animate-fade-in">
-            <div className="bg-gray-900 rounded-xl shadow-2xl w-full max-w-3xl max-h-[90vh] flex flex-col">
+            <div className="bg-gray-900 rounded-xl shadow-2xl w-full max-w-4xl max-h-[90vh] flex flex-col relative">
+                {/* Navigation arrows */}
+                {canNavigatePrev && (
+                    <button
+                        onClick={() => onNavigate(currentIndex - 1)}
+                        className="absolute left-4 top-1/2 -translate-y-1/2 z-10 p-2 bg-gray-800/80 hover:bg-gray-700 text-white rounded-full transition-colors"
+                        title="Previous post (↑)"
+                    >
+                        <ChevronLeft size={20} />
+                    </button>
+                )}
+                {canNavigateNext && (
+                    <button
+                        onClick={() => onNavigate(currentIndex + 1)}
+                        className="absolute right-4 top-1/2 -translate-y-1/2 z-10 p-2 bg-gray-800/80 hover:bg-gray-700 text-white rounded-full transition-colors"
+                        title="Next post (↓)"
+                    >
+                        <ChevronRight size={20} />
+                    </button>
+                )}
+
                 <div className="flex justify-between items-center p-4 border-b border-gray-800">
                     <div className="flex items-center gap-3 text-sm">
                         <Link to={`/profile/${post.author_id}`} onClick={onClose}>
@@ -103,7 +156,14 @@ export default function ViewPostModal({ open, onClose, post, loggedInUser, onTri
                         </Link>
                         <div>
                             <Link to={`/profile/${post.author_id}`} onClick={onClose} className="font-semibold text-white hover:underline">{post.user_profile?.username || "Unknown User"}</Link>
-                            <p className="text-xs text-gray-400">{post.location?.location_name || "Unknown Location"}</p>
+                            <div className="flex items-center gap-2 text-xs text-gray-400">
+                                {post.location?.location_name && (
+                                    <>
+                                        <MapPin size={12} />
+                                        <span>{post.location.location_name}</span>
+                                    </>
+                                )}
+                            </div>
                         </div>
                     </div>
                     <button onClick={onClose} className="text-gray-400 hover:text-white transition-colors"><X size={24} /></button>
@@ -111,9 +171,29 @@ export default function ViewPostModal({ open, onClose, post, loggedInUser, onTri
 
                 <div className="p-5 overflow-y-auto">
                     <h2 className="text-2xl font-bold text-white mb-3">{post.title}</h2>
+                    
+                    {/* Tags */}
+                    {post.tags && post.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mb-4">
+                            {post.tags.map((tag, index) => (
+                                <button
+                                    key={index}
+                                    onClick={() => {
+                                        onClose();
+                                        navigate(`/tag/${encodeURIComponent(tag.name)}`);
+                                    }}
+                                    className="inline-flex items-center gap-1 px-3 py-1 bg-purple-900/30 hover:bg-purple-900/50 text-purple-300 hover:text-purple-200 text-sm rounded-full border border-purple-700/50 hover:border-purple-600/50 transition-all cursor-pointer"
+                                >
+                                    <Tag size={12} />
+                                    {tag.name}
+                                </button>
+                            ))}
+                        </div>
+                    )}
+                    
                     <p className="text-gray-300 whitespace-pre-wrap">{post.content}</p>
 
-                    <div className="mt-6 pt-4 border-t border-gray-800/50 flex items-center gap-6 text-sm">
+                    <div className="mt-6 pt-4 border-t border-gray-800/50 flex items-center gap-6 text-sm flex-wrap">
                         <div className="flex items-center gap-2">
                             <button onClick={() => handleVote(1)} className={`flex items-center gap-1.5 p-1.5 rounded-md transition-colors ${userVote === 1 ? 'text-purple-400 bg-purple-900/50' : 'text-gray-400 hover:bg-gray-700'}`}>
                                 <ArrowUp size={16} /> <span className="font-semibold">{localUpvotes}</span>
@@ -122,14 +202,18 @@ export default function ViewPostModal({ open, onClose, post, loggedInUser, onTri
                                 <ArrowDown size={16} /> <span className="font-semibold">{localDownvotes}</span>
                             </button>
                         </div>
-                        <div className="flex items-center gap-2 text-gray-400">
-                            <MessageSquare size={16} />
-                            <span>{comments.length} Comments</span>
+
+                        {/* Stats */}
+                        <div className="flex items-center gap-4 text-gray-400">
+                            <div className="flex items-center gap-2">
+                                <MessageSquare size={16} />
+                                <span>{comments.length} Comments</span>
+                            </div>
+                            <button onClick={() => { onClose(); onCascade(post); }} className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors">
+                                <GitBranch size={16} />
+                                <span>{post.cascade_count || 0} Cascades</span>
+                            </button>
                         </div>
-                        <button onClick={() => { onClose(); onCascade(post); }} className="flex items-center gap-2 text-gray-400 hover:text-white transition-colors">
-                            <GitBranch size={16} />
-                            <span>{post.cascade_count || 0} Cascades</span>
-                        </button>
                     </div>
 
                     <div className="mt-8">

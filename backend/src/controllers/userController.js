@@ -31,10 +31,26 @@ export const getUserById = asyncHandler(async (req, res) => {
     // req.user is attached by your checkJwtMiddleware if the user is logged in
     const loggedInUserId = req.user?.user_id || null;
 
+    // First check if the profile user exists and get their role
+    const userCheck = await db.oneOrNone(`
+        SELECT user_id, role FROM user_profiles WHERE user_id = $1
+    `, [profileUserId]);
+
+    if (!userCheck) {
+        res.status(404);
+        throw new Error('User not found.');
+    }
+
+    // Privacy control: If the profile is an admin and the requester is not an admin, deny access
+    if (userCheck.role === 'admin' && req.user?.role !== 'admin') {
+        res.status(403);
+        throw new Error('Access denied. Cannot view admin profiles.');
+    }
+
     // This query now includes a subquery to check the follow status
     const query = `
         SELECT 
-            u.user_id, u.username, u.email, u.profile_picture_url, u.bio, u.created_at,
+            u.user_id, u.username, u.email, u.profile_picture_url, u.bio, u.created_at, u.role,
             (SELECT COUNT(*) FROM followers WHERE followed_id = u.user_id) AS followers_count,
             (SELECT COUNT(*) FROM followers WHERE follower_id = u.user_id) AS following_count,
             -- Check if a follow relationship exists from the logged-in user to this profile
@@ -49,6 +65,12 @@ export const getUserById = asyncHandler(async (req, res) => {
         res.status(404);
         throw new Error('User not found.');
     }
+    
+    // Don't expose admin role to non-admin users for security
+    if (req.user?.role !== 'admin' && user.role === 'admin') {
+        delete user.role;
+    }
+    
     res.json({ user });
 });
 
@@ -102,6 +124,30 @@ export const updateUserProfile = asyncHandler(async (req, res) => {
 });
 
 export const getUserCommunities = asyncHandler(async (req, res) => {
-    // ... your logic here
-    res.json({ communities: [] });
+    const { userId } = req.params;
+    
+    try {
+        // Get communities the user has joined
+        const query = `
+            SELECT 
+                c.community_id,
+                c.community_name,
+                c.description,
+                c.created_at,
+                c.member_count,
+                cm.joined_at,
+                cm.role as member_role
+            FROM community c
+            INNER JOIN community_members cm ON c.community_id = cm.community_id
+            WHERE cm.user_id = $1
+            ORDER BY cm.joined_at DESC
+        `;
+        
+        const communities = await db.manyOrNone(query, [userId]);
+        res.json({ communities: communities || [] });
+    } catch (error) {
+        console.error('Error fetching user communities:', error);
+        // Return empty array as fallback
+        res.json({ communities: [] });
+    }
 });

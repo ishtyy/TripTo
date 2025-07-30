@@ -11,7 +11,7 @@ router.route('/flights').get(getFlightBookings);
 router.route('/hotels').get(getHotelBookings);
 // Parameterized routes come after specific ones
 router.route('/:bookingId').get(getBookingDetails);
-router.route('/:bookingId/status').put(updateBookingStatus);
+router.route('/:bookingId/status').put(updateBookingStatus).patch(updateBookingStatus);
 router.route('/:bookingId').delete(async (req, res) => {
     // Delete booking endpoint
     const { bookingId } = req.params;
