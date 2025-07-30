@@ -521,7 +521,14 @@ const getBookingsByUser = asyncHandler(async (req, res) => {
 });
 
 const getComprehensiveItinerary = asyncHandler(async (req, res) => {
-    const userId = req.user?.user_id;
+    const userId = req.user?.user_id || req.params.userId;
+
+    if (!userId) {
+        return res.status(400).json({
+            success: false,
+            error: 'User ID is required'
+        });
+    }
 
     try {
         // Get all user bookings
@@ -547,7 +554,7 @@ const getComprehensiveItinerary = asyncHandler(async (req, res) => {
             GROUP BY b.booking_id, b.travel_date, b.status, b.booked_at
         `, [userId]);
 
-        // Get hotel bookings
+        // Get hotel bookings with debug info
         const hotelBookings = await db.any(`
             SELECT 
                 b.booking_id,
@@ -678,6 +685,42 @@ const getAllBookings = asyncHandler(async (req, res) => {
     res.json(allBookings);
 });
 
+// Debug function to get all hotel bookings
+const getAllHotelBookings = asyncHandler(async (req, res) => {
+    try {
+        const allHotelBookings = await db.any(`
+            SELECT 
+                hb.*,
+                b.user_id,
+                b.booking_id,
+                b.status as booking_status,
+                b.booked_at,
+                h.hotel_name,
+                hr.room_type,
+                up.username
+            FROM hotel_bookings hb
+            JOIN booking b ON hb.booking_id = b.booking_id
+            LEFT JOIN hotels h ON hb.hotel_id = h.hotel_id
+            LEFT JOIN hotel_rooms hr ON hb.room_id = hr.room_id
+            LEFT JOIN user_profiles up ON b.user_id = up.user_id
+            ORDER BY b.booked_at DESC
+        `);
+
+        res.json({
+            success: true,
+            hotel_bookings: allHotelBookings,
+            count: allHotelBookings.length
+        });
+    } catch (error) {
+        console.error('Error fetching all hotel bookings:', error);
+        res.status(500).json({
+            success: false,
+            error: 'Failed to fetch hotel bookings',
+            message: error.message
+        });
+    }
+});
+
 export {
     getOrCreateItinerary,
     addFlightToItinerary,
@@ -688,5 +731,6 @@ export {
     getBookingsByUser,
     getMyBookingHistory,
     getComprehensiveItinerary,  // Add the new function
-    getAllBookings
+    getAllBookings,
+    getAllHotelBookings
 };
