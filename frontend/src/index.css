@@ -50,6 +50,18 @@ body {
   100% { background-position: 0% 50%; }
 }
 
+/* Slide-up animation for Active Followers Tray */
+@keyframes slide-up {
+  from {
+    opacity: 0;
+    transform: translateY(10px) scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
 .animated-gradient-text {
   background: linear-gradient(90deg, #22d3ee, #3b82f6, #22d3ee); /* Cyan to Blue back to Cyan */
   background-size: 200% 200%;
