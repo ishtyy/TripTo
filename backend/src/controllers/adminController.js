@@ -519,24 +519,20 @@ export const getFlightBookings = (req, res) => getPaginatedData(req, res, {
 
 // Get hotel bookings specifically  
 export const getHotelBookings = (req, res) => getPaginatedData(req, res, {
-    baseQuery: `SELECT DISTINCT b.booking_id, b.user_id, b.booked_at, b.booked_at as created_at, 
-                       b.travel_date, b.status, up.username as user_username,
-                       h.hotel_name as hotel_title, 
-                       CONCAT(hr.room_type, ' - ', hb.guest_count, ' guests') as hotel_description,
-                       hb.check_in_date, hb.check_out_date, hb.guest_count, hb.special_requests,
-                       h.address as hotel_address, hr.room_type, hr.bed_type, hr.base_price
+    baseQuery: `SELECT DISTINCT b.booking_id, b.user_id, b.booked_at, b.booked_at as created_at, b.travel_date, b.status, up.username as user_username,
+                       bi.title as hotel_title, bi.description as hotel_description
                 FROM booking b
                 JOIN user_profiles up ON b.user_id = up.user_id
-                JOIN hotel_bookings hb ON b.booking_id = hb.booking_id
-                LEFT JOIN hotels h ON hb.hotel_id = h.hotel_id
-                LEFT JOIN hotel_rooms hr ON hb.room_id = hr.room_id`,
+                JOIN booking_item bi_item ON b.booking_id = bi_item.booking_id
+                JOIN bookable_item bi ON bi_item.bookable_item_id = bi.bookable_item_id
+                WHERE bi.type = 'accommodation'`,
     countQuery: `SELECT COUNT(DISTINCT b.booking_id)
                  FROM booking b
                  JOIN user_profiles up ON b.user_id = up.user_id
-                 JOIN hotel_bookings hb ON b.booking_id = hb.booking_id
-                 LEFT JOIN hotels h ON hb.hotel_id = h.hotel_id
-                 LEFT JOIN hotel_rooms hr ON hb.room_id = hr.room_id`,
-    searchColumns: ['b.booking_id::text', 'up.username', 'b.status', 'h.hotel_name', 'hr.room_type'],
+                 JOIN booking_item bi_item ON b.booking_id = bi_item.booking_id
+                 JOIN bookable_item bi ON bi_item.bookable_item_id = bi.bookable_item_id
+                 WHERE bi.type = 'accommodation'`,
+    searchColumns: ['b.booking_id::text', 'up.username', 'b.status', 'bi.title'],
     defaultSortBy: 'booked_at',
-    allowedSortBy: ['booking_id', 'user_id', 'user_username', 'booked_at', 'created_at', 'travel_date', 'status', 'hotel_title', 'check_in_date', 'guest_count']
+    allowedSortBy: ['booking_id', 'user_id', 'user_username', 'booked_at', 'created_at', 'travel_date', 'status', 'hotel_title']
 });

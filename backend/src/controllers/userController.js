@@ -125,17 +125,6 @@ export const updateUserProfile = asyncHandler(async (req, res) => {
 
 export const getUserCommunities = asyncHandler(async (req, res) => {
     const { userId } = req.params;
-    const authenticatedUserId = req.user?.user_id;
-    
-    console.log('[getUserCommunities] Request params userId:', userId);
-    console.log('[getUserCommunities] Authenticated user ID:', authenticatedUserId);
-    console.log('[getUserCommunities] User IDs match:', userId === authenticatedUserId);
-    
-    // Only allow users to view their own communities
-    if (userId !== authenticatedUserId) {
-        console.log('[getUserCommunities] Access denied - user ID mismatch');
-        return res.status(403).json({ error: "Forbidden: You can only view your own joined communities." });
-    }
     
     try {
         // Get communities the user has joined
@@ -145,21 +134,16 @@ export const getUserCommunities = asyncHandler(async (req, res) => {
                 c.community_name,
                 c.description,
                 c.created_at,
+                c.member_count,
                 cm.joined_at,
-                cm.role as member_role,
-                CASE 
-                    WHEN l.location_name IS NOT NULL THEN json_build_object('location_name', l.location_name, 'country', l.country)
-                    ELSE NULL
-                END AS location
+                cm.role as member_role
             FROM community c
-            INNER JOIN community_membership cm ON c.community_id = cm.community_id
-            LEFT JOIN locations l ON c.location_id = l.location_id
+            INNER JOIN community_members cm ON c.community_id = cm.community_id
             WHERE cm.user_id = $1
             ORDER BY cm.joined_at DESC
         `;
         
         const communities = await db.manyOrNone(query, [userId]);
-        console.log(`[userController] User ${userId} joined communities:`, communities?.length || 0);
         res.json({ communities: communities || [] });
     } catch (error) {
         console.error('Error fetching user communities:', error);

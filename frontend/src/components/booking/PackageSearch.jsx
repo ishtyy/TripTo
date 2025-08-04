@@ -4,6 +4,7 @@ import api from '../../services/api';
 import { useBooking } from '../../context/BookingContext';
 import toast from 'react-hot-toast';
 import PackageBookingModal from './PackageBookingModal';
+import GroupSizeModal from './GroupSizeModal';
 
 export default function PackageSearch() {
     const [destination, setDestination] = useState('');
@@ -13,8 +14,38 @@ export default function PackageSearch() {
     const [searchPerformed, setSearchPerformed] = useState(false);
     const [selectedPackage, setSelectedPackage] = useState(null);
     const [showBookingModal, setShowBookingModal] = useState(false);
+    const [showGroupSizeModal, setShowGroupSizeModal] = useState(false);
+    const [packageForGroupSize, setPackageForGroupSize] = useState(null);
 
     const { addPackageToCart } = useBooking();
+
+    const handleAddToCartClick = (packageItem) => {
+        // Show group size modal instead of directly adding to cart
+        setPackageForGroupSize(packageItem);
+        setShowGroupSizeModal(true);
+    };
+
+    const handleGroupSizeConfirm = (packageWithGroupSize) => {
+        const cartItem = {
+            id: packageWithGroupSize.package_id,
+            package_id: packageWithGroupSize.package_id,
+            package_name: packageWithGroupSize.package_name,
+            destination: packageWithGroupSize.destination,
+            start_date: packageWithGroupSize.start_date,
+            end_date: packageWithGroupSize.end_date,
+            total_price: packageWithGroupSize.price * packageWithGroupSize.selectedGroupSize,
+            unit_price: packageWithGroupSize.price,
+            group_size: packageWithGroupSize.selectedGroupSize,
+            description: packageWithGroupSize.description,
+            flights: packageWithGroupSize.flights || [],
+            hotels: packageWithGroupSize.hotels || [],
+            activities: packageWithGroupSize.activities || []
+        };
+
+        addPackageToCart(cartItem);
+        setShowGroupSizeModal(false);
+        setPackageForGroupSize(null);
+    };
 
     const handleAddToCart = (packageBooking) => {
         const cartItem = {
@@ -434,21 +465,19 @@ export default function PackageSearch() {
                             <div className="pt-4 border-t border-gray-700 flex gap-3">
                                 <button
                                     onClick={() => {
-                                        handleAddToCart({
+                                        const packageData = {
                                             package_id: selectedPackage.package.package_id,
                                             package_name: selectedPackage.package.title,
                                             destination: `${selectedPackage.package.location_name}, ${selectedPackage.package.country}`,
                                             start_date: selectedPackage.package.start_date,
                                             end_date: selectedPackage.package.end_date,
-                                            total_price: selectedPackage.package.price,
-                                            group_size: selectedPackage.package.group_size,
+                                            price: selectedPackage.package.price,
                                             description: selectedPackage.package.description,
                                             flights: selectedPackage.flights,
                                             hotels: selectedPackage.hotels,
                                             activities: selectedPackage.activities
-                                        });
-                                        setSelectedPackage(null);
-                                        toast.success('Package added to cart!');
+                                        };
+                                        handleAddToCartClick(packageData);
                                     }}
                                     className="flex-1 bg-purple-600 hover:bg-purple-700 text-white py-3 rounded-lg font-semibold transition-colors flex items-center justify-center gap-2"
                                 >
@@ -473,6 +502,19 @@ export default function PackageSearch() {
                     packageData={selectedPackage}
                     onClose={() => setShowBookingModal(false)}
                     onBookingComplete={handleBookingComplete}
+                />
+            )}
+
+            {/* Group Size Selection Modal */}
+            {showGroupSizeModal && packageForGroupSize && (
+                <GroupSizeModal
+                    isOpen={showGroupSizeModal}
+                    packageData={packageForGroupSize}
+                    onClose={() => {
+                        setShowGroupSizeModal(false);
+                        setPackageForGroupSize(null);
+                    }}
+                    onConfirm={handleGroupSizeConfirm}
                 />
             )}
         </div>

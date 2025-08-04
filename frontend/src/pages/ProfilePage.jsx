@@ -302,46 +302,12 @@ export default function ProfilePage({ loggedInUser, onViewPost, onCascade, onTri
                             <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                                 {joinedCommunities.length > 0 ? (
                                     joinedCommunities.map(community => (
-                                        <Link 
-                                            to={`/communities/${community.community_id}`} 
-                                            key={community.community_id} 
-                                            className="p-4 bg-gray-900/80 hover:bg-gray-800/50 rounded-lg transition-colors border border-gray-800 hover:border-purple-500/50 group"
-                                        >
-                                            <div className="flex items-start gap-3">
-                                                <Users size={20} className="text-purple-400 mt-1 flex-shrink-0" />
-                                                <div className="flex-1 min-w-0">
-                                                    <h3 className="font-semibold text-gray-200 group-hover:text-white mb-1 truncate">
-                                                        {community.community_name}
-                                                    </h3>
-                                                    {community.description && (
-                                                        <p className="text-sm text-gray-400 line-clamp-2 mb-2">
-                                                            {community.description}
-                                                        </p>
-                                                    )}
-                                                    <div className="flex items-center justify-between text-xs text-gray-500">
-                                                        <span className="flex items-center gap-1">
-                                                            <MapPin size={12} />
-                                                            {community.location?.location_name || 'Global'}
-                                                        </span>
-                                                        <span className="bg-purple-500/10 text-purple-400 px-2 py-1 rounded-full">
-                                                            {community.member_role || 'Member'}
-                                                        </span>
-                                                    </div>
-                                                </div>
-                                            </div>
+                                        <Link to={`/communities/${community.community_id}`} key={community.community_id} className="flex items-center gap-3 p-4 bg-gray-900 hover:bg-gray-800/50 rounded-lg transition-colors border border-gray-800">
+                                            <MapPin size={18} className="text-gray-500" />
+                                            <span className="font-semibold text-gray-300">{community.community_name}</span>
                                         </Link>
                                     ))
-                                ) : (
-                                    <div className="text-center py-10 bg-gray-900/50 rounded-xl border border-gray-800 md:col-span-3">
-                                        <Users size={48} className="mx-auto text-gray-600 mb-4" />
-                                        <p className="text-gray-400 mb-2">You haven't joined any communities yet.</p>
-                                        <p className="text-sm text-gray-500">
-                                            <Link to="/communities" className="text-purple-400 hover:text-purple-300">
-                                                Explore communities
-                                            </Link> to connect with fellow travelers!
-                                        </p>
-                                    </div>
-                                )}
+                                ) : <div className="text-center py-10 bg-gray-900/50 rounded-xl border border-gray-800 md:col-span-3"><p className="text-gray-400">You haven't joined any communities yet.</p></div>}
                             </section>
                         )}
 

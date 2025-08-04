@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { Users, ShoppingCart } from 'lucide-react';
 import { useBooking } from '../../context/BookingContext';
 import PassengerAndSeatForm from './PassengerAndSeatForm';
 
@@ -40,26 +41,36 @@ export default function UnifiedBookingDetails() {
     };
 
     const renderDetailsForm = () => {
-        if (!currentItem) return null;
+    if (!currentItem) return null;
 
-        switch (currentItem.type) {
-            case 'flight':
+    switch (currentItem.type) {
+        case 'flight':
+            return (
+                <FlightDetailsForm 
+                    item={currentItem}
+                    onCompleted={() => handleItemCompleted(currentItem.id)}
+                    onSkip={handleSkipToNext}
+                />
+            );
+        case 'hotel':
+            return (
+                <HotelDetailsForm 
+                    item={currentItem}
+                    onCompleted={() => handleItemCompleted(currentItem.id)}
+                    onSkip={handleSkipToNext}
+                />
+            );
+        case 'package':
+            // Check if it's a cart-only item or requires full booking details
+            if (currentItem.data?.isCartOnly) {
                 return (
-                    <FlightDetailsForm 
+                    <SimplePackageCartForm 
                         item={currentItem}
                         onCompleted={() => handleItemCompleted(currentItem.id)}
                         onSkip={handleSkipToNext}
                     />
                 );
-            case 'hotel':
-                return (
-                    <HotelDetailsForm 
-                        item={currentItem}
-                        onCompleted={() => handleItemCompleted(currentItem.id)}
-                        onSkip={handleSkipToNext}
-                    />
-                );
-            case 'package':
+            } else {
                 return (
                     <PackageDetailsForm 
                         item={currentItem}
@@ -67,11 +78,11 @@ export default function UnifiedBookingDetails() {
                         onSkip={handleSkipToNext}
                     />
                 );
-            default:
-                return <div className="text-red-400">Unknown item type: {currentItem.type}</div>;
-        }
-    };
-
+            }
+        default:
+            return <div className="text-red-400">Unknown item type: {currentItem.type}</div>;
+    }
+};
     return (
         <div className="space-y-6">
             {/* Progress indicator */}
@@ -321,5 +332,71 @@ const PackageDetailsForm = ({ item, onCompleted, onSkip }) => {
                 </button>
             </div>
         </form>
+    );
+};
+
+// Simple cart form for packages added via "Add to Cart"
+const SimplePackageCartForm = ({ item, onCompleted, onSkip }) => {
+    const packageData = item.data;
+    const groupSize = packageData.group_size || 1;
+
+    const handleProceed = () => {
+        console.log('Package cart item confirmed:', packageData);
+        onCompleted();
+    };
+
+    return (
+        <div className="space-y-6">
+            <div className="bg-gray-800/50 p-4 rounded-lg">
+                <h4 className="font-semibold text-white mb-4 flex items-center gap-2">
+                    <ShoppingCart size={20} className="text-purple-400" />
+                    Package Cart Item
+                </h4>
+                
+                {/* Package summary */}
+                <div className="bg-green-900/20 border border-green-500/30 p-4 rounded-lg mb-4">
+                    <h5 className="font-medium text-white mb-2">{packageData.package_name}</h5>
+                    <p className="text-gray-300 text-sm mb-3">{packageData.destination}</p>
+                    
+                    <div className="grid grid-cols-2 gap-4 text-sm">
+                        <div>
+                            <span className="text-gray-400">Group Size:</span>
+                            <div className="flex items-center gap-1 text-green-400 font-medium">
+                                <Users size={14} />
+                                {groupSize} {groupSize === 1 ? 'person' : 'people'}
+                            </div>
+                        </div>
+                        <div>
+                            <span className="text-gray-400">Total Cost:</span>
+                            <div className="text-green-400 font-bold">
+                                ${(packageData.unit_price * groupSize).toLocaleString()}
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="bg-blue-900/20 border border-blue-500/30 p-3 rounded-lg">
+                    <p className="text-blue-300 text-sm">
+                        ℹ️ This package is ready for booking. Passenger details will be collected during the payment process.
+                    </p>
+                </div>
+            </div>
+
+            <div className="flex gap-3">
+                <button
+                    type="button"
+                    onClick={onSkip}
+                    className="px-4 py-2 bg-gray-600 hover:bg-gray-700 text-white rounded-lg transition-colors"
+                >
+                    Skip for Now
+                </button>
+                <button
+                    onClick={handleProceed}
+                    className="flex-1 py-3 bg-purple-600 hover:bg-purple-700 text-white font-semibold rounded-lg transition-colors"
+                >
+                    Proceed to Review
+                </button>
+            </div>
+        </div>
     );
 };
