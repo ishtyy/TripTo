@@ -1,6 +1,9 @@
 backend/node_modules
 frontend/node_modules
 
+#i do not prefer to share source codes 
+backend/src
+frontend/src
 
 
 # Logs
